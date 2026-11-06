@@ -4,13 +4,15 @@ Live audience polling inside [Quarto](https://quarto.org) revealjs presentations
 
 Question types: single choice (live bar chart) and free text (live word cloud). Results can be shown again on a later slide.
 
+This extension was vibe coded with Claude (Anthropic) by Michael Asger Andersen in an evening. It is tested end to end against Firebase, but read the code before you trust it with anything important.
+
 ## Install
 
 ```bash
 quarto add masger/quarto-poll
 ```
 
-This copies `_extensions/poll` into your project. The audience page is hosted at <https://masger.github.io/poll/>; it is a single static HTML file that you can also host yourself (see `audience/index.html`).
+This copies `_extensions/poll` into your project. The audience page is hosted at <https://masger.github.io/poll/>; it is a single static HTML file that you can also host yourself (see below).
 
 ## Write a poll
 
@@ -20,7 +22,6 @@ title: "My talk"
 format:
   revealjs:
     filters: [poll]
-metadata-files: [_poll.yml]
 ---
 
 ## Most of us do not genotype before clopidogrel
@@ -53,42 +54,46 @@ A `.poll` div holds one paragraph (the question) and an optional bullet list (th
 | `type="text"` | Free text with a word cloud (implied when there is no list). |
 | `auto="false"` | Do not open the poll when the slide appears; open it with the V key. |
 
-During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes.
+During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes. The slide shows a QR code, the address of the audience page and the room code, so people without a camera can type it.
 
-## Configure
+## Configure: `_poll.yml`
 
-Put the connection details in `_poll.yml` next to the deck (git-ignore it, it holds the presenter password) and reference it with `metadata-files: [_poll.yml]`. You can also put the `poll:` block directly in the YAML header.
+Create a file named `_poll.yml` next to your `.qmd` (add it to `.gitignore`, it holds the presenter password):
 
 ```yaml
 poll:
   db: https://YOUR-PROJECT-default-rtdb.europe-west1.firebasedatabase.app
   api-key: AIza...                # Firebase web API key (not a secret)
   email: presenter@example.com    # Firebase Authentication user
-  password: ...
-  room: pgx26                     # short code the audience can also type by hand
+  password: "..."                 # quote it if it contains # or spaces
+  room: pgx26                     # short room code, unique per talk
   audience: https://masger.github.io/poll/
   color: "#B22222"                # bar and word colour
   lang: da                        # da or en, for the slide labels and the audience page
   close-on-leave: true
 ```
 
-Keep the room code unique per talk (or reset votes with X). The rendered HTML contains the password, so do not publish the deck itself.
+The filter reads this file verbatim, so any characters are fine in the password. You can also put a `poll:` block in the YAML header of the deck or point to another file with `poll: {file: other.yml}`. Header values are parsed as Markdown by Pandoc, so `$`, `*` and `_` in a password would be mangled there; keep the password in the file.
+
+The rendered HTML contains the password, so do not publish the deck itself.
 
 ## Set up Firebase (once, about ten minutes)
 
-1. Go to <https://console.firebase.google.com>, **Add project**, any name, Analytics off.
-2. **Build > Realtime Database > Create database**. Choose a location (for Europe: Belgium, `europe-west1`) and **locked mode**. Copy the database URL; it is `poll.db`.
-3. Open the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json), replace `PRESENTER_EMAIL` with the address you create in step 4, and **Publish**.
-4. **Build > Authentication > Get started**. Under **Sign-in method** enable **Email/Password**. Under **Users** add a user with that email and a password; they are `poll.email` and `poll.password`.
-5. **Project settings > General > Your apps > Web app** (the `</>` icon). Register it without hosting and copy `apiKey`; it is `poll.api-key`.
+You need four values: the database URL, the web API key, and the email and password of one presenter user.
 
-What the rules do: anyone with the room code can read the polls and write one vote per device, and only while the poll is open and only a valid option or a short text. Only the signed-in presenter can create polls, open and close them, and reset votes. No personal data is stored: a vote is a random device id and an option index or a short text.
+1. **Create a project.** Go to <https://console.firebase.google.com>, **Add project**, any name, Analytics off.
+2. **Create the database.** Left menu, **Build > Realtime Database > Create database**. Choose a location (for Europe: Belgium, `europe-west1`) and **Start in locked mode**. The **Data** tab now shows the database URL at the top, like `https://my-project-default-rtdb.europe-west1.firebasedatabase.app`. That is `db`.
+3. **Publish the rules.** Open the **Rules** tab. It shows a small JSON document (`".read": false, ".write": false`), not YAML. Replace the whole thing with the contents of [`database.rules.json`](database.rules.json), change `PRESENTER_EMAIL` to the email you will create in step 4, and click **Publish**.
+4. **Create the presenter login.** **Build > Authentication > Get started**. Under **Sign-in method** enable **Email/Password**. Under **Users**, **Add user** with an email and a password. They are `email` and `password`.
+5. **Get the API key.** Click the gear next to **Project Overview**, **Project settings**. Scroll down to **Your apps**, click the web icon `</>`, give the app a nickname, leave Firebase Hosting unticked and click **Register app**. The page shows a `firebaseConfig` snippet; copy the `apiKey` value (starts with `AIza`). That is `api-key`. The rest of the snippet is not needed; the extension does not use the Firebase SDK.
 
-Free plan limit: the Spark plan allows **100 simultaneous connections** to the database. Every phone and the presenter each hold one. For a larger audience switch the project to the Blaze (pay as you go) plan, which has the same free quota for storage and traffic; a poll of a few hundred votes stays at zero cost.
+What the rules do: anyone with the room code can read the polls and write one vote per device, only while the poll is open and only a valid option index or a short text. Only the signed-in presenter can create polls, open and close them, and reset votes. No personal data is stored: a vote is a random device id and an option index or a short text.
+
+Free plan limit: the Spark plan allows **100 simultaneous connections** to the database. Every phone and the presenter each hold one. For a larger audience switch the project to the Blaze (pay as you go) plan, which keeps the same free quota for storage and traffic; a poll with a few hundred votes stays at zero cost.
 
 ## Host the audience page yourself
 
-Copy `audience/index.html` to any static host and set `poll.audience` to its URL. The page takes `?r=<room>&db=<database url>&l=<da|en>` from the QR code, so one copy works for any database. Edit `DEFAULT_DB` in the file if you want people to be able to type the code by hand without the QR code.
+Copy `audience/index.html` to any static host and set `audience` to its URL. The page takes `?r=<room>&db=<database url>&l=<da|en>` from the QR code, so one copy works for any database. Edit `DEFAULT_DB` in the file so that people who type the room code by hand reach your database.
 
 ## Develop and test without Firebase
 

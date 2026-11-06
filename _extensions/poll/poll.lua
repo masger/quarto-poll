@@ -22,20 +22,50 @@ local function esc(s)
   return s
 end
 
+-- Pandoc parses YAML header values as Markdown, so a password such as "a$b*c$" would lose
+-- its dollar signs. The config file is therefore read verbatim: simple `key: value` lines,
+-- optionally indented under `poll:`, with optional quotes around the value.
+local function read_config_file(path)
+  local f = io.open(path, "r")
+  if not f then return {} end
+  local out = {}
+  for line in f:lines() do
+    local key, value = line:match("^%s*([%w%-]+):%s*(.-)%s*$")
+    if key and key ~= "poll" and value ~= "" then
+      local quoted = value:match('^"(.*)"$') or value:match("^'(.*)'$")
+      if quoted then
+        value = quoted
+      else
+        value = value:gsub("%s+#.*$", "")
+      end
+      out[key] = value
+    end
+  end
+  f:close()
+  return out
+end
+
 local function inject(meta)
   if injected then return end
   injected = true
   local p = meta.poll or {}
+  local file = str(p.file) or "_poll.yml"
+  local dir = pandoc.path.directory(quarto.doc.input_file or "")
+  local raw = read_config_file(pandoc.path.join({ dir, file }))
+  local function get(key)
+    if raw[key] ~= nil then return raw[key] end
+    return str(p[key])
+  end
   local cfg = {
-    db = str(p.db) or "",
-    room = str(p.room) or "",
-    apiKey = str(p["api-key"]) or "",
-    email = str(p.email) or "",
-    password = str(p.password) or "",
-    audience = str(p.audience) or "https://masger.github.io/poll/",
-    color = str(p.color) or "",
-    lang = str(p.lang) or "da",
-    closeOnLeave = (str(p["close-on-leave"]) ~= "false"),
+    db = get("db") or "",
+    room = get("room") or "",
+    apiKey = get("api-key") or "",
+    email = get("email") or "",
+    password = get("password") or "",
+    audience = get("audience") or "https://masger.github.io/poll/",
+    color = get("color") or "",
+    lang = get("lang") or "da",
+    closeOnLeave = (get("close-on-leave") ~= "false"),
   }
   quarto.doc.include_text("in-header", "<script>window.QUARTO_POLL = " .. json(cfg) .. ";</script>")
   quarto.doc.add_html_dependency({

@@ -3,3 +3,6 @@ example.html
 example_files/
 .quarto/
 __pycache__/
+live.qmd
+live.html
+live_files/

@@ -1,0 +1,37 @@
+---
+title: "quarto-poll: live polling in revealjs"
+author: "Michael Asger Andersen"
+lang: da
+format:
+  revealjs:
+    filters: [poll]
+    slide-number: c/t
+embed-resources: true
+poll:
+  db: http://localhost:8787
+  room: test
+  audience: http://localhost:8787/audience/
+  color: "#B22222"
+  lang: da
+---
+
+## Flertallet genotyper ikke før clopidogrel
+
+::: {.poll #clopidogrel}
+Hvad gør du mandag, når en patient med stent skal have clopidogrel?
+
+- Bestiller CYP2C19-genotype først
+- Skifter til ticagrelor uden test
+- Giver clopidogrel og ser tiden an
+:::
+
+## Hvilket ord beskriver farmakogenetik i dag?
+
+::: {.poll #ord type="text"}
+Ét ord, der beskriver farmakogenetik i din hverdag
+:::
+
+## Resultatet fra første spørgsmål
+
+::: {.poll-results poll="clopidogrel"}
+:::

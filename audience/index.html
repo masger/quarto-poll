@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poll</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --bg: #fafafa; --fg: #1a1a1a; --card: #fff; --line: #ddd; --accent: #b22222; --muted: #666; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --card: #1c1c1c; --line: #333; --muted: #aaa; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+  main { max-width: 32em; margin: 0 auto; padding: 1.2em 1em 3em; }
+  h1 { font-size: 1.35em; line-height: 1.3; margin: 0.2em 0 0.8em; }
+  .muted { color: var(--muted); font-size: 0.9em; }
+  .btn { display: block; width: 100%; text-align: left; font: inherit; font-size: 1.05em; padding: 0.9em 1em; margin: 0.5em 0; border: 2px solid var(--line); border-radius: 0.6em; background: var(--card); color: var(--fg); cursor: pointer; }
+  .btn:active { transform: scale(0.99); }
+  .btn.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .btn.selected::after { content: " ✓"; color: var(--accent); font-weight: 700; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); text-align: center; }
+  input[type=text] { width: 100%; font: inherit; font-size: 1.05em; padding: 0.8em; border: 2px solid var(--line); border-radius: 0.6em; background: var(--card); color: var(--fg); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4em; align-items: center; margin: 0.35em 0; font-size: 0.95em; }
+  .row .label { text-align: right; }
+  .track { background: rgba(127,127,127,0.2); height: 1em; border-radius: 0.25em; overflow: hidden; }
+  .fill { height: 100%; background: var(--accent); transition: width 0.4s; }
+  .count { font-size: 0.85em; color: var(--muted); }
+  .badge { display: inline-block; font-size: 0.8em; padding: 0.15em 0.6em; border-radius: 1em; background: var(--line); margin-bottom: 0.6em; }
+  .badge.open { background: #2e8b57; color: #fff; }
+  .badge.closed { background: var(--accent); color: #fff; }
+  .toast { position: fixed; left: 50%; bottom: 1.2em; transform: translateX(-50%); background: #333; color: #fff; padding: 0.6em 1em; border-radius: 0.5em; font-size: 0.95em; display: none; max-width: 90vw; }
+  .cloud { display: flex; flex-wrap: wrap; gap: 0.3em 0.7em; justify-content: center; align-items: center; line-height: 1.1; }
+  .cloud span { color: var(--accent); }
+  footer { margin-top: 2em; font-size: 0.75em; color: var(--muted); }
+</style>
+</head>
+<body>
+<main id="app"><p class="muted">…</p></main>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  'use strict';
+  // Fallback database when the QR code does not carry one (set this to your own Firebase URL).
+  const DEFAULT_DB = 'https://YOUR-PROJECT-default-rtdb.europe-west1.firebasedatabase.app';
+
+  const I18N = {
+    da: { title: 'Afstemning', enterCode: 'Skriv koden fra skærmen.', code: 'Kode', join: 'Deltag', wait: 'Vent på næste spørgsmål …',
+          open: 'Åben', closed: 'Lukket', answers: 'svar', tap: 'Tryk på et svar.', change: 'Du kan ændre dit svar, så længe afstemningen er åben.',
+          yourAnswer: 'Dit svar', send: 'Send', placeholder: 'Dit svar', isClosed: 'Afstemningen er lukket.', none: 'Ingen svar endnu',
+          saved: 'Dit svar er registreret', rejected: 'Afstemningen er lukket', failed: 'Kunne ikke sende svar', offline: 'Ingen forbindelse',
+          lost: 'Mistede forbindelsen. Genindlæs siden.' },
+    en: { title: 'Poll', enterCode: 'Enter the code shown on screen.', code: 'Code', join: 'Join', wait: 'Waiting for the next question …',
+          open: 'Open', closed: 'Closed', answers: 'answers', tap: 'Tap an answer.', change: 'You can change your answer while the poll is open.',
+          yourAnswer: 'Your answer', send: 'Send', placeholder: 'Your answer', isClosed: 'The poll is closed.', none: 'No answers yet',
+          saved: 'Answer saved', rejected: 'The poll is closed', failed: 'Could not send the answer', offline: 'No connection',
+          lost: 'Connection lost. Reload the page.' },
+  };
+
+  const q = new URLSearchParams(location.search);
+  const room = (q.get('r') || '').trim();
+  const db = (q.get('db') || DEFAULT_DB).replace(/\/+$/, '');
+  const T = I18N[q.get('l')] || I18N.da;
+  document.documentElement.lang = I18N[q.get('l')] ? q.get('l') : 'da';
+  document.title = T.title;
+  const app = document.getElementById('app');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  let dev;
+  try {
+    dev = localStorage.getItem('poll-device');
+    if (!dev) { dev = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('poll-device', dev); }
+  } catch (e) { dev = 'd' + Math.random().toString(36).slice(2, 12); }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; }, 2500);
+  }
+
+  if (!room) {
+    app.innerHTML = `<h1>${T.title}</h1><p class="muted">${T.enterCode}</p>
+      <form id="f"><input type="text" id="code" placeholder="${T.code}" autocomplete="off" autocapitalize="none">
+      <button class="btn primary" type="submit">${T.join}</button></form>`;
+    document.getElementById('f').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const c = document.getElementById('code').value.trim();
+      if (!c) return;
+      const p = new URLSearchParams(location.search);
+      p.set('r', c);
+      location.search = '?' + p.toString();
+    });
+    return;
+  }
+
+  let data = {};
+  let draft = '';
+
+  function setPath(root, path, val) {
+    const parts = path.split('/').filter(Boolean);
+    if (!parts.length) return val === null || val === undefined ? {} : val;
+    if (typeof root !== 'object' || root === null) root = {};
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (typeof node[parts[i]] !== 'object' || node[parts[i]] === null) node[parts[i]] = {};
+      node = node[parts[i]];
+    }
+    const last = parts[parts.length - 1];
+    if (val === null || val === undefined) delete node[last]; else node[last] = val;
+    return root;
+  }
+
+  function listen() {
+    const es = new EventSource(`${db}/pub/${encodeURIComponent(room)}.json`);
+    es.addEventListener('put', (e) => { const m = JSON.parse(e.data); data = m.path === '/' ? (m.data || {}) : setPath(data, m.path, m.data); render(); });
+    es.addEventListener('patch', (e) => { const m = JSON.parse(e.data); Object.keys(m.data || {}).forEach((k) => { data = setPath(data, m.path + '/' + k, m.data[k]); }); render(); });
+    es.onerror = () => { if (es.readyState === EventSource.CLOSED) app.innerHTML = `<h1>${T.title}</h1><p>${T.lost}</p>`; };
+  }
+
+  async function vote(pollId, value) {
+    try {
+      const r = await fetch(`${db}/pub/${encodeURIComponent(room)}/polls/${encodeURIComponent(pollId)}/votes/${dev}.json`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
+      });
+      if (r.ok) toast(T.saved);
+      else toast(r.status === 401 || r.status === 403 ? T.rejected : T.failed + ' (' + r.status + ')');
+    } catch (e) { toast(T.offline); }
+  }
+
+  function bars(options, votes) {
+    const counts = options.map(() => 0);
+    votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) counts[v]++; });
+    const max = Math.max(1, ...counts), total = votes.length;
+    return options.map((o, i) => `<div class="row"><div class="label">${esc(o)}</div>
+      <div><div class="track"><div class="fill" style="width:${(100 * counts[i] / max).toFixed(1)}%"></div></div>
+      <div class="count">${counts[i]}${total ? ' (' + Math.round(100 * counts[i] / total) + '%)' : ''}</div></div></div>`).join('');
+  }
+  function cloud(votes) {
+    const m = new Map();
+    votes.forEach((v) => { if (typeof v !== 'string') return; const k = v.trim(); if (!k) return; const key = k.toLowerCase(); const c = m.get(key) || { text: k, n: 0 }; c.n++; m.set(key, c); });
+    const items = [...m.values()];
+    if (!items.length) return `<p class="muted">${T.none}</p>`;
+    const max = Math.max(...items.map((x) => x.n));
+    return '<div class="cloud">' + items.map((x) => `<span style="font-size:${(0.9 + 1.4 * x.n / max).toFixed(2)}em">${esc(x.text)}</span>`).join(' ') + '</div>';
+  }
+
+  function render() {
+    const id = data.active;
+    const poll = id && data.polls ? data.polls[id] : null;
+    if (!poll) {
+      app.innerHTML = `<h1>${T.title}</h1><p class="muted">${T.wait}</p><footer>${T.code}: ${esc(room)}</footer>`;
+      return;
+    }
+    const votes = poll.votes ? Object.values(poll.votes) : [];
+    const mine = poll.votes ? poll.votes[dev] : undefined;
+    const open = poll.state === 'open';
+    const options = poll.options || [];
+    let html = `<span class="badge ${open ? 'open' : 'closed'}">${open ? T.open : T.closed} · ${votes.length} ${T.answers}</span>
+      <h1>${esc(poll.question || '')}</h1>`;
+    if (open && poll.type !== 'text') {
+      html += options.map((o, i) => `<button class="btn ${mine === i ? 'selected' : ''}" data-i="${i}">${esc(o)}</button>`).join('');
+      html += `<p class="muted">${mine === undefined ? T.tap : T.change}</p>`;
+    } else if (open && poll.type === 'text') {
+      html += `<form id="tf"><input type="text" id="ti" maxlength="80" placeholder="${T.placeholder}" autocomplete="off" value="${esc(draft)}">
+        <button class="btn primary" type="submit">${T.send}</button></form>
+        ${mine !== undefined ? `<p class="muted">${T.yourAnswer}: <b>${esc(mine)}</b></p>` : ''}`;
+    } else {
+      html += poll.type === 'text' ? cloud(votes) : bars(options, votes);
+      html += `<p class="muted">${T.isClosed}</p>`;
+    }
+    html += `<footer>${T.code}: ${esc(room)}</footer>`;
+    app.innerHTML = html;
+    app.querySelectorAll('button[data-i]').forEach((b) => b.addEventListener('click', () => vote(id, Number(b.dataset.i))));
+    const tf = document.getElementById('tf');
+    if (tf) {
+      const ti = document.getElementById('ti');
+      ti.addEventListener('input', () => { draft = ti.value; });
+      tf.addEventListener('submit', (e) => { e.preventDefault(); const v = ti.value.trim(); if (v) { vote(id, v); draft = ''; } });
+    }
+  }
+
+  listen();
+})();
+</script>
+</body>
+</html>

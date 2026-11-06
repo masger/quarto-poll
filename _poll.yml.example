@@ -1,0 +1,11 @@
+# Copy to _poll.yml next to your .qmd and add `metadata-files: [_poll.yml]` to the YAML header.
+# _poll.yml is git-ignored so the presenter password never ends up in a repository.
+poll:
+  db: https://YOUR-PROJECT-default-rtdb.europe-west1.firebasedatabase.app
+  api-key: AIza...
+  email: presenter@example.com
+  password: ...
+  room: pgx26
+  audience: https://masger.github.io/poll/
+  color: "#B22222"
+  lang: da

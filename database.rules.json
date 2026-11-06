@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "pub": {
+      "$room": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email === 'PRESENTER_EMAIL'",
+        "polls": {
+          "$poll": {
+            "votes": {
+              "$dev": {
+                ".write": "data.parent().parent().child('state').val() === 'open' && $dev.length <= 40",
+                ".validate": "(data.parent().parent().child('type').val() === 'text' && newData.isString() && newData.val().length > 0 && newData.val().length <= 80) || (data.parent().parent().child('type').val() === 'choice' && newData.isNumber() && newData.val() >= 0 && newData.val() < data.parent().parent().child('n').val())"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

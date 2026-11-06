@@ -1,0 +1,5 @@
+_poll.yml
+example.html
+example_files/
+.quarto/
+__pycache__/

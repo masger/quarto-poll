@@ -6,13 +6,18 @@ Question types: single choice (live bar chart) and free text (live word cloud). 
 
 This extension was vibe coded with Claude (Anthropic) by Michael Asger Andersen in an evening. It is tested end to end against Firebase, but read the code before you trust it with anything important.
 
-## Install
+## Quick start
 
-```bash
-quarto add masger/quarto-poll
-```
+1. Set up Firebase once (see below) so you have a database URL, an API key and a presenter login.
+2. In the folder of your presentation, install the extension:
 
-This copies `_extensions/poll` into your project. The audience page is hosted at <https://masger.github.io/poll/>; it is a single static HTML file that you can also host yourself (see below).
+   ```bash
+   quarto add masger/quarto-poll
+   ```
+
+   This creates `_extensions/masger/poll`. The audience page is hosted at <https://masger.github.io/poll/>; it is a single static HTML file that you can also host yourself (see below).
+3. Create `_poll.yml` in the same folder with your Firebase values (see *Configure*). The filter finds it by itself; you do not need `metadata-files`.
+4. Add `filters: [poll]` to the deck and write the polls as below. Render with `quarto render my-talk.qmd` and open the HTML file. The example below is a complete working deck.
 
 ## Write a poll
 

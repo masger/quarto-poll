@@ -197,6 +197,16 @@
       `<span style="font-size:${(0.7 + 1.8 * x.n / max).toFixed(2)}em" title="${x.n}">${esc(x.text)}</span>`).join(' ') + '</div>';
   }
 
+  function cards(votes) {
+    const items = votes.filter((v) => typeof v === 'string' && v.trim());
+    if (!items.length) return `<div class="poll-empty">${T.none}</div>`;
+    return '<div class="poll-cards">' + items.map((v) => `<div class="poll-card">${esc(v.trim())}</div>`).join('') + '</div>';
+  }
+
+  function counter(n) {
+    return `<div class="poll-counter"><b>${n}</b> ${T.answers}</div>`;
+  }
+
   function render() {
     document.querySelectorAll('.quarto-poll, .quarto-poll-results').forEach((el) => {
       const id = el.dataset.pollId;
@@ -206,7 +216,11 @@
       const options = (poll && poll.options) || JSON.parse(el.dataset.options || '[]');
       const votes = poll && poll.votes ? Object.values(poll.votes) : [];
       const chart = isResults ? el : el.querySelector('.poll-chart');
-      if (chart) chart.innerHTML = type === 'text' ? cloud(votes) : bars(options, votes);
+      const hidden = !isResults && el.dataset.results === 'hidden' && poll && poll.state === 'open';
+      if (chart) {
+        chart.innerHTML = hidden ? counter(votes.length)
+          : type === 'text' ? cloud(votes) : type === 'open' ? cards(votes) : bars(options, votes);
+      }
       if (!isResults) {
         const status = el.querySelector('.poll-status');
         const st = poll ? poll.state : null;

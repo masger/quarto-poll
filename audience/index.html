@@ -18,7 +18,9 @@
   .btn.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
   .btn.selected::after { content: " ✓"; color: var(--accent); font-weight: 700; }
   .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); text-align: center; }
-  input[type=text] { width: 100%; font: inherit; font-size: 1.05em; padding: 0.8em; border: 2px solid var(--line); border-radius: 0.6em; background: var(--card); color: var(--fg); }
+  input[type=text], textarea { width: 100%; font: inherit; font-size: 1.05em; padding: 0.8em; border: 2px solid var(--line); border-radius: 0.6em; background: var(--card); color: var(--fg); }
+  .cards { display: flex; flex-direction: column; gap: 0.5em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0.4em; padding: 0.6em 0.8em; white-space: pre-wrap; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4em; align-items: center; margin: 0.35em 0; font-size: 0.95em; }
   .row .label { text-align: right; }
   .track { background: rgba(127,127,127,0.2); height: 1em; border-radius: 0.25em; overflow: hidden; }
@@ -142,6 +144,12 @@
     return '<div class="cloud">' + items.map((x) => `<span style="font-size:${(0.9 + 1.4 * x.n / max).toFixed(2)}em">${esc(x.text)}</span>`).join(' ') + '</div>';
   }
 
+  function cards(votes) {
+    const items = votes.filter((v) => typeof v === 'string' && v.trim());
+    if (!items.length) return `<p class="muted">${T.none}</p>`;
+    return '<div class="cards">' + items.map((v) => `<div class="card">${esc(v.trim())}</div>`).join('') + '</div>';
+  }
+
   function render() {
     const id = data.active;
     const poll = id && data.polls ? data.polls[id] : null;
@@ -155,15 +163,20 @@
     const options = poll.options || [];
     let html = `<span class="badge ${open ? 'open' : 'closed'}">${open ? T.open : T.closed} · ${votes.length} ${T.answers}</span>
       <h1>${esc(poll.question || '')}</h1>`;
-    if (open && poll.type !== 'text') {
+    const isText = poll.type === 'text' || poll.type === 'open';
+    if (open && !isText) {
       html += options.map((o, i) => `<button class="btn ${mine === i ? 'selected' : ''}" data-i="${i}">${esc(o)}</button>`).join('');
       html += `<p class="muted">${mine === undefined ? T.tap : T.change}</p>`;
     } else if (open && poll.type === 'text') {
       html += `<form id="tf"><input type="text" id="ti" maxlength="80" placeholder="${T.placeholder}" autocomplete="off" value="${esc(draft)}">
         <button class="btn primary" type="submit">${T.send}</button></form>
         ${mine !== undefined ? `<p class="muted">${T.yourAnswer}: <b>${esc(mine)}</b></p>` : ''}`;
+    } else if (open && poll.type === 'open') {
+      html += `<form id="tf"><textarea id="ti" maxlength="300" rows="4" placeholder="${T.placeholder}">${esc(draft)}</textarea>
+        <button class="btn primary" type="submit">${T.send}</button></form>
+        ${mine !== undefined ? `<p class="muted">${T.yourAnswer}: <b>${esc(mine)}</b></p>` : ''}`;
     } else {
-      html += poll.type === 'text' ? cloud(votes) : bars(options, votes);
+      html += poll.type === 'text' ? cloud(votes) : poll.type === 'open' ? cards(votes) : bars(options, votes);
       html += `<p class="muted">${T.isClosed}</p>`;
     }
     html += `<footer>${T.code}: ${esc(room)}</footer>`;

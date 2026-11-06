@@ -25,3 +25,8 @@
 
 .reveal .quarto-poll-results { min-height: 2em; }
 .poll-toast { position: fixed; left: 1em; bottom: 1em; z-index: 1000; background: #b22222; color: #fff; padding: 0.5em 0.8em; border-radius: 0.3em; font-size: 14px; max-width: 40em; }
+
+.reveal .poll-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); gap: 0.4em; font-size: 0.55em; max-height: 11em; overflow-y: auto; }
+.reveal .poll-card { text-align: left; line-height: 1.25; padding: 0.5em 0.7em; border-left: 0.25em solid var(--poll-color, #b22222); background: rgba(127, 127, 127, 0.12); border-radius: 0.2em; white-space: pre-wrap; }
+.reveal .poll-counter { font-size: 1em; text-align: center; padding: 0.8em 0; opacity: 0.9; }
+.reveal .poll-counter b { font-size: 2.4em; display: block; line-height: 1; color: var(--poll-color, #b22222); }

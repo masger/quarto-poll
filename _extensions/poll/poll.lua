@@ -50,11 +50,16 @@ local function inject(meta)
   injected = true
   local p = meta.poll or {}
   local file = str(p.file) or "_poll.yml"
-  local dir = pandoc.path.directory(quarto.doc.input_file or "")
-  local raw = read_config_file(pandoc.path.join({ dir, file }))
+  local raw = {}
+  if file ~= "none" and file ~= "" then
+    local dir = pandoc.path.directory(quarto.doc.input_file or "")
+    raw = read_config_file(pandoc.path.join({ dir, file }))
+  end
+  -- Header values win; the file fills in what the header does not set (typically the password).
   local function get(key)
-    if raw[key] ~= nil then return raw[key] end
-    return str(p[key])
+    local v = str(p[key])
+    if v ~= nil and v ~= "" then return v end
+    return raw[key]
   end
   local cfg = {
     db = get("db") or "",
@@ -105,11 +110,20 @@ local function poll_div(div)
   end
 
   local qtype = div.attributes["type"] or (#options > 0 and "choice" or "text")
+  if qtype ~= "choice" and qtype ~= "text" and qtype ~= "open" then
+    quarto.log.warning("poll " .. id .. ": unknown type '" .. qtype .. "', using 'choice'")
+    qtype = "choice"
+  end
+  if qtype == "choice" and #options == 0 then
+    quarto.log.warning("poll " .. id .. ": type 'choice' needs a bullet list of options")
+  end
   local auto = div.attributes["auto"] ~= "false"
+  local results = div.attributes["results"] == "hidden" and "hidden" or "live"
 
   local html = '<div class="quarto-poll" data-poll-id="' .. esc(id) .. '"'
     .. ' data-type="' .. esc(qtype) .. '"'
     .. ' data-auto="' .. tostring(auto) .. '"'
+    .. ' data-results="' .. results .. '"'
     .. ' data-options="' .. esc(json(options)) .. '"'
     .. ' data-question="' .. esc(question_text) .. '">'
     .. '<div class="poll-question">' .. question_html .. '</div>'

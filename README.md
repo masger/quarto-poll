@@ -2,7 +2,7 @@
 
 Live audience polling inside [Quarto](https://quarto.org) revealjs presentations. The audience scans a QR code on the slide, answers on their phone, and the slide updates in real time. No Mentimeter, no account for the audience, no server to run: votes go through a free [Firebase Realtime Database](https://firebase.google.com/docs/database) that you own.
 
-Question types: single choice (live bar chart) and free text (live word cloud). Results can be shown again on a later slide.
+Question types: single choice (live bar chart), short text (live word cloud) and open answers (cards). Results can be hidden until you close the poll and shown again on a later slide.
 
 This extension was vibe coded with Claude (Anthropic) by Michael Asger Andersen in an evening. It is tested end to end against Firebase, but read the code before you trust it with anything important.
 
@@ -49,6 +49,22 @@ One word that describes pharmacogenetics in your daily work
 
 ::: {.poll-results poll="clopidogrel"}
 :::
+
+## Nobody sees the distribution until I close the poll
+
+::: {.poll #dose results="hidden"}
+Which dose would you choose?
+
+- 5 mg
+- 10 mg
+- 20 mg
+:::
+
+## Open answers appear as cards
+
+::: {.poll #barrier type="open"}
+What is your biggest barrier to using pharmacogenetics?
+:::
 ```
 
 A `.poll` div holds one paragraph (the question) and an optional bullet list (the options). Without a list the poll is free text. Attributes:
@@ -56,7 +72,9 @@ A `.poll` div holds one paragraph (the question) and an optional bullet list (th
 | Attribute | Meaning |
 | --- | --- |
 | `#id` | Poll id, used by `.poll-results` and in the database. Defaults to `poll1`, `poll2`, ... |
-| `type="text"` | Free text with a word cloud (implied when there is no list). |
+| `type="text"` | Short free text (80 characters) shown as a word cloud (implied when there is no list). |
+| `type="open"` | Open answers (300 characters) shown as cards, like an open-ended question. |
+| `results="hidden"` | While the poll is open the slide shows only the number of answers, not what people chose. Close the poll (leave the slide or press V) to reveal the chart. |
 | `auto="false"` | Do not open the poll when the slide appears; open it with the V key. |
 
 During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes. The slide shows a QR code, the address of the audience page and the room code, so people without a camera can type it.
@@ -78,7 +96,7 @@ poll:
   close-on-leave: true
 ```
 
-The filter reads this file verbatim, so any characters are fine in the password. You can also put a `poll:` block in the YAML header of the deck or point to another file with `poll: {file: other.yml}`. Header values are parsed as Markdown by Pandoc, so `$`, `*` and `_` in a password would be mangled there; keep the password in the file.
+The filter reads this file verbatim, so any characters are fine in the password. You can also put a `poll:` block in the YAML header of the deck; header values win, and the file fills in the rest. Point to another file with `poll: {file: other.yml}` or switch the file off with `poll: {file: none}`. Header values are parsed as Markdown by Pandoc, so `$`, `*` and `_` in a password would be mangled there; keep the password in the file.
 
 The rendered HTML contains the password, so do not publish the deck itself.
 
@@ -91,6 +109,8 @@ You need four values: the database URL, the web API key, and the email and passw
 3. **Publish the rules.** Open the **Rules** tab. It shows a small JSON document (`".read": false, ".write": false`), not YAML. Replace the whole thing with the contents of [`database.rules.json`](database.rules.json), change `PRESENTER_EMAIL` to the email you will create in step 4, and click **Publish**.
 4. **Create the presenter login.** **Build > Authentication > Get started**. Under **Sign-in method** enable **Email/Password**. Under **Users**, **Add user** with an email and a password. They are `email` and `password`.
 5. **Get the API key.** Click the gear next to **Project Overview**, **Project settings**. Scroll down to **Your apps**, click the web icon `</>`, give the app a nickname, leave Firebase Hosting unticked and click **Register app**. The page shows a `firebaseConfig` snippet; copy the `apiKey` value (starts with `AIza`). That is `api-key`. The rest of the snippet is not needed; the extension does not use the Firebase SDK.
+
+When `database.rules.json` changes in a new version of the extension, paste it again and publish; the deck does not update the rules by itself.
 
 What the rules do: anyone with the room code can read the polls and write one vote per device, only while the poll is open and only a valid option index or a short text. Only the signed-in presenter can create polls, open and close them, and reset votes. No personal data is stored: a vote is a random device id and an option index or a short text.
 

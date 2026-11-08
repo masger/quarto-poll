@@ -13,6 +13,12 @@
               }
             }
           }
+        },
+        "names": {
+          "$dev": {
+            ".write": "$dev.length <= 40",
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 24"
+          }
         }
       }
     }

@@ -9,9 +9,11 @@
   const cfg = { db: '', room: '', apiKey: '', email: '', password: '', audience: '', color: '', lang: 'da', closeOnLeave: true };
   const I18N = {
     da: { open: 'Åben', closed: 'Lukket', idle: 'Ikke startet', answers: 'svar', code: 'Kode', none: 'Ingen svar endnu',
-          keyToggle: 'Afstemning: åbn/luk', keyReset: 'Afstemning: nulstil stemmer' },
+          keyToggle: 'Afstemning: åbn/luk', keyReset: 'Afstemning: nulstil stemmer', correct: 'rigtige', points: 'point',
+          noScores: 'Ingen point endnu', anonymous: 'Anonym' },
     en: { open: 'Open', closed: 'Closed', idle: 'Not started', answers: 'answers', code: 'Code', none: 'No answers yet',
-          keyToggle: 'Poll: open/close', keyReset: 'Poll: reset votes' },
+          keyToggle: 'Poll: open/close', keyReset: 'Poll: reset votes', correct: 'correct', points: 'points',
+          noScores: 'No points yet', anonymous: 'Anonymous' },
   };
   let T = I18N.da;
   function loadConfig() {
@@ -21,7 +23,9 @@
     T = I18N[cfg.lang] || I18N.da;
   }
 
-  const state = { polls: {}, token: null, refresh: null, current: null, ready: false };
+  /* room = { active, polls: {id: {...}}, names: {device: name} } mirrored from the database */
+  const state = { room: {}, token: null, refresh: null, current: null, ready: false };
+  const polls = () => state.room.polls || {};
 
   /* ---------- helpers ---------- */
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -98,24 +102,31 @@
       options: JSON.parse(el.dataset.options || '[]'),
       type: el.dataset.type || 'choice',
       auto: el.dataset.auto !== 'false',
+      quiz: el.dataset.quiz === 'true',
+      correct: el.dataset.correct === '' ? null : Number(el.dataset.correct),
+      points: Number(el.dataset.points || 1),
     };
   }
 
   async function activate(el) {
     const m = meta(el);
-    const existing = state.polls[m.id];
+    const existing = polls()[m.id];
     const st = m.auto ? 'open' : ((existing && existing.state) || 'closed');
-    await write('PATCH', `/polls/${encodeURIComponent(m.id)}`, {
-      question: m.question, options: m.options, n: m.options.length, type: m.type, state: st,
-    });
+    const body = { question: m.question, options: m.options, n: m.options.length, type: m.type, state: st, quiz: m.quiz, points: m.points };
+    /* The correct answer is only written when the poll closes, so the audience cannot read it while voting. */
+    body.correct = st === 'closed' && m.quiz ? m.correct : null;
+    await write('PATCH', `/polls/${encodeURIComponent(m.id)}`, body);
     await write('PUT', '/active', m.id);
   }
   async function setState(el, st) {
-    await write('PATCH', `/polls/${encodeURIComponent(meta(el).id)}`, { state: st });
+    const m = meta(el);
+    const body = { state: st };
+    if (m.quiz) body.correct = st === 'closed' ? m.correct : null;
+    await write('PATCH', `/polls/${encodeURIComponent(m.id)}`, body);
   }
   function toggle() {
     const el = state.current; if (!el) return;
-    const p = state.polls[meta(el).id];
+    const p = polls()[meta(el).id];
     setState(el, p && p.state === 'open' ? 'closed' : 'open');
   }
   function reset() {
@@ -126,19 +137,43 @@
   /* ---------- live stream ---------- */
   function listen() {
     if (!cfg.db || !cfg.room) { toast('poll.db or poll.room is missing in the YAML header.', 20000); return; }
-    const es = new EventSource(`${base()}/polls.json`);
+    const es = new EventSource(`${base()}.json`);
     es.addEventListener('put', (e) => {
       const m = JSON.parse(e.data);
-      state.polls = m.path === '/' ? (m.data || {}) : setPath(state.polls, m.path, m.data);
+      state.room = m.path === '/' ? (m.data || {}) : setPath(state.room, m.path, m.data);
       render();
     });
     es.addEventListener('patch', (e) => {
       const m = JSON.parse(e.data);
-      state.polls = patchPath(state.polls, m.path, m.data);
+      state.room = patchPath(state.room, m.path, m.data);
       render();
     });
     es.addEventListener('cancel', () => toast('The database closed the stream (read access denied).'));
     es.onerror = () => { if (es.readyState === EventSource.CLOSED) toast('Lost the database connection. Reload the deck.'); };
+  }
+
+  /* ---------- scoring ---------- */
+  function scores() {
+    const totals = {};
+    Object.values(polls()).forEach((p) => {
+      if (!p || !p.quiz || p.correct === undefined || p.correct === null || !p.votes) return;
+      const pts = Number(p.points || 1);
+      Object.keys(p.votes).forEach((dev) => { if (p.votes[dev] === p.correct) totals[dev] = (totals[dev] || 0) + pts; });
+    });
+    const names = state.room.names || {};
+    return Object.keys(totals)
+      .map((dev) => ({ dev, name: names[dev] || T.anonymous, points: totals[dev] }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }
+
+  function leaderboard(top) {
+    const rows = scores().slice(0, top);
+    if (!rows.length) return `<div class="poll-empty">${T.noScores}</div>`;
+    let rank = 0, prev = null;
+    return '<ol class="poll-scoreboard">' + rows.map((r, i) => {
+      if (r.points !== prev) { rank = i + 1; prev = r.points; }
+      return `<li><span class="poll-rank">${rank}</span><span class="poll-name">${esc(r.name)}</span><span class="poll-points">${r.points} ${T.points}</span></li>`;
+    }).join('') + '</ol>';
   }
 
   /* ---------- rendering ---------- */
@@ -166,14 +201,14 @@
 
   function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
 
-  function bars(options, votes) {
+  function bars(options, votes, correct) {
     const counts = options.map(() => 0);
     votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) counts[v]++; });
     const total = votes.length;
     const max = Math.max(1, ...counts);
     return options.map((o, i) => `
-      <div class="poll-bar-row">
-        <div class="poll-bar-label">${esc(o)}</div>
+      <div class="poll-bar-row${correct === i ? ' correct' : ''}">
+        <div class="poll-bar-label">${esc(o)}${correct === i ? ' ✓' : ''}</div>
         <div class="poll-bar-track"><div class="poll-bar-fill" style="width:${(100 * counts[i] / max).toFixed(1)}%"></div></div>
         <div class="poll-bar-count">${counts[i]}${total ? ` (${Math.round(100 * counts[i] / total)}%)` : ''}</div>
       </div>`).join('');
@@ -210,24 +245,33 @@
   function render() {
     document.querySelectorAll('.quarto-poll, .quarto-poll-results').forEach((el) => {
       const id = el.dataset.pollId;
-      const poll = state.polls[id];
+      const poll = polls()[id];
       const isResults = el.classList.contains('quarto-poll-results');
       const type = (poll && poll.type) || el.dataset.type || 'choice';
       const options = (poll && poll.options) || JSON.parse(el.dataset.options || '[]');
       const votes = poll && poll.votes ? Object.values(poll.votes) : [];
       const chart = isResults ? el : el.querySelector('.poll-chart');
-      const hidden = !isResults && el.dataset.results === 'hidden' && poll && poll.state === 'open';
+      const st = poll ? poll.state : null;
+      const hidden = !isResults && el.dataset.results === 'hidden' && st === 'open';
+      const correct = poll && poll.quiz && st === 'closed' && Number.isInteger(poll.correct) ? poll.correct : null;
       if (chart) {
         chart.innerHTML = hidden ? counter(votes.length)
-          : type === 'text' ? cloud(votes) : type === 'open' ? cards(votes) : bars(options, votes);
+          : type === 'text' ? cloud(votes) : type === 'open' ? cards(votes) : bars(options, votes, correct);
       }
       if (!isResults) {
         const status = el.querySelector('.poll-status');
-        const st = poll ? poll.state : null;
         const label = st === 'open' ? T.open : st === 'closed' ? T.closed : T.idle;
+        let extra = '';
+        if (correct !== null) {
+          const right = votes.filter((v) => v === correct).length;
+          extra = ` · ${right}/${votes.length} ${T.correct}`;
+        }
         status.className = 'poll-status ' + (st || '');
-        status.innerHTML = `<span class="poll-dot"></span>${label} · ${votes.length} ${T.answers}`;
+        status.innerHTML = `<span class="poll-dot"></span>${label} · ${votes.length} ${T.answers}${extra}`;
       }
+    });
+    document.querySelectorAll('.quarto-poll-scores').forEach((el) => {
+      el.innerHTML = leaderboard(Number(el.dataset.top || 10));
     });
   }
 

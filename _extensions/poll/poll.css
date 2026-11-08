@@ -30,3 +30,11 @@
 .reveal .poll-card { text-align: left; line-height: 1.25; padding: 0.5em 0.7em; border-left: 0.25em solid var(--poll-color, #b22222); background: rgba(127, 127, 127, 0.12); border-radius: 0.2em; white-space: pre-wrap; }
 .reveal .poll-counter { font-size: 1em; text-align: center; padding: 0.8em 0; opacity: 0.9; }
 .reveal .poll-counter b { font-size: 2.4em; display: block; line-height: 1; color: var(--poll-color, #b22222); }
+
+.reveal .poll-bar-row.correct .poll-bar-label { color: #2e8b57; font-weight: 700; }
+.reveal .poll-bar-row.correct .poll-bar-fill { background: #2e8b57; }
+.reveal ol.poll-scoreboard { list-style: none; margin: 0; padding: 0; font-size: 0.7em; counter-reset: none; }
+.reveal ol.poll-scoreboard li { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.6em; align-items: baseline; padding: 0.15em 0.3em; border-bottom: 1px solid rgba(127, 127, 127, 0.3); text-align: left; }
+.reveal ol.poll-scoreboard li:first-child .poll-rank { color: var(--poll-color, #b22222); }
+.reveal .poll-rank { font-weight: 700; font-variant-numeric: tabular-nums; }
+.reveal .poll-points { font-variant-numeric: tabular-nums; opacity: 0.85; }

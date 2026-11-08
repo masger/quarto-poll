@@ -6,7 +6,7 @@
 <title>Poll</title>
 <meta name="robots" content="noindex">
 <style>
-  :root { --bg: #fafafa; --fg: #1a1a1a; --card: #fff; --line: #ddd; --accent: #b22222; --muted: #666; }
+  :root { --bg: #fafafa; --fg: #1a1a1a; --card: #fff; --line: #ddd; --accent: #b22222; --muted: #666; --ok: #2e8b57; }
   @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --card: #1c1c1c; --line: #333; --muted: #aaa; } }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
@@ -23,12 +23,22 @@
   .card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0.4em; padding: 0.6em 0.8em; white-space: pre-wrap; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4em; align-items: center; margin: 0.35em 0; font-size: 0.95em; }
   .row .label { text-align: right; }
+  .row.correct .label { color: var(--ok); font-weight: 700; }
+  .row.correct .fill { background: var(--ok); }
   .track { background: rgba(127,127,127,0.2); height: 1em; border-radius: 0.25em; overflow: hidden; }
   .fill { height: 100%; background: var(--accent); transition: width 0.4s; }
   .count { font-size: 0.85em; color: var(--muted); }
   .badge { display: inline-block; font-size: 0.8em; padding: 0.15em 0.6em; border-radius: 1em; background: var(--line); margin-bottom: 0.6em; }
-  .badge.open { background: #2e8b57; color: #fff; }
+  .badge.open { background: var(--ok); color: #fff; }
   .badge.closed { background: var(--accent); color: #fff; }
+  .verdict { font-size: 1.3em; font-weight: 700; margin: 0.6em 0 0.2em; }
+  .verdict.right { color: var(--ok); }
+  .verdict.wrong { color: var(--accent); }
+  ol.scores { list-style: none; padding: 0; margin: 0.5em 0; }
+  ol.scores li { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.5em; padding: 0.4em 0.2em; border-bottom: 1px solid var(--line); }
+  ol.scores li.me { font-weight: 700; color: var(--accent); }
+  .name { font-size: 0.85em; color: var(--muted); margin-bottom: 0.5em; }
+  .name a { color: var(--accent); }
   .toast { position: fixed; left: 50%; bottom: 1.2em; transform: translateX(-50%); background: #333; color: #fff; padding: 0.6em 1em; border-radius: 0.5em; font-size: 0.95em; display: none; max-width: 90vw; }
   .cloud { display: flex; flex-wrap: wrap; gap: 0.3em 0.7em; justify-content: center; align-items: center; line-height: 1.1; }
   .cloud span { color: var(--accent); }
@@ -49,12 +59,16 @@
           open: 'Åben', closed: 'Lukket', answers: 'svar', tap: 'Tryk på et svar.', change: 'Du kan ændre dit svar, så længe afstemningen er åben.',
           yourAnswer: 'Dit svar', send: 'Send', placeholder: 'Dit svar', isClosed: 'Afstemningen er lukket.', none: 'Ingen svar endnu',
           saved: 'Dit svar er registreret', rejected: 'Afstemningen er lukket', failed: 'Kunne ikke sende svar', offline: 'Ingen forbindelse',
-          lost: 'Mistede forbindelsen. Genindlæs siden.' },
+          lost: 'Mistede forbindelsen. Genindlæs siden.', quizName: 'Det er en quiz. Hvad skal vi kalde dig?', namePlaceholder: 'Dit navn',
+          saveName: 'Gem', nameSaved: 'Navn gemt', you: 'Du spiller som', changeName: 'skift', right: 'Rigtigt!', wrong: 'Forkert',
+          noAnswer: 'Du svarede ikke', correctWas: 'Rigtigt svar', points: 'point', total: 'Du har i alt', scores: 'Stilling', anonymous: 'Anonym' },
     en: { title: 'Poll', enterCode: 'Enter the code shown on screen.', code: 'Code', join: 'Join', wait: 'Waiting for the next question …',
           open: 'Open', closed: 'Closed', answers: 'answers', tap: 'Tap an answer.', change: 'You can change your answer while the poll is open.',
           yourAnswer: 'Your answer', send: 'Send', placeholder: 'Your answer', isClosed: 'The poll is closed.', none: 'No answers yet',
           saved: 'Answer saved', rejected: 'The poll is closed', failed: 'Could not send the answer', offline: 'No connection',
-          lost: 'Connection lost. Reload the page.' },
+          lost: 'Connection lost. Reload the page.', quizName: 'This is a quiz. What should we call you?', namePlaceholder: 'Your name',
+          saveName: 'Save', nameSaved: 'Name saved', you: 'You play as', changeName: 'change', right: 'Correct!', wrong: 'Wrong',
+          noAnswer: 'You did not answer', correctWas: 'Correct answer', points: 'points', total: 'Your total', scores: 'Scores', anonymous: 'Anonymous' },
   };
 
   const q = new URLSearchParams(location.search);
@@ -66,10 +80,11 @@
   const app = document.getElementById('app');
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  let dev;
+  let dev, myName = '';
   try {
     dev = localStorage.getItem('poll-device');
     if (!dev) { dev = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('poll-device', dev); }
+    myName = localStorage.getItem('poll-name') || '';
   } catch (e) { dev = 'd' + Math.random().toString(36).slice(2, 12); }
 
   function toast(msg) {
@@ -95,6 +110,7 @@
 
   let data = {};
   let draft = '';
+  let editingName = false;
 
   function setPath(root, path, val) {
     const parts = path.split('/').filter(Boolean);
@@ -117,21 +133,39 @@
     es.onerror = () => { if (es.readyState === EventSource.CLOSED) app.innerHTML = `<h1>${T.title}</h1><p>${T.lost}</p>`; };
   }
 
+  async function put(path, value) {
+    const r = await fetch(`${db}/pub/${encodeURIComponent(room)}${path}.json`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
+    });
+    return r;
+  }
+
   async function vote(pollId, value) {
     try {
-      const r = await fetch(`${db}/pub/${encodeURIComponent(room)}/polls/${encodeURIComponent(pollId)}/votes/${dev}.json`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
-      });
+      const r = await put(`/polls/${encodeURIComponent(pollId)}/votes/${dev}`, value);
       if (r.ok) toast(T.saved);
       else toast(r.status === 401 || r.status === 403 ? T.rejected : T.failed + ' (' + r.status + ')');
     } catch (e) { toast(T.offline); }
   }
 
-  function bars(options, votes) {
+  async function saveName(name) {
+    name = name.trim().slice(0, 24);
+    if (!name) return;
+    try {
+      const r = await put(`/names/${dev}`, name);
+      if (!r.ok) { toast(T.failed + ' (' + r.status + ')'); return; }
+      myName = name; editingName = false;
+      try { localStorage.setItem('poll-name', name); } catch (e) { /* ignore */ }
+      toast(T.nameSaved);
+      render();
+    } catch (e) { toast(T.offline); }
+  }
+
+  function bars(options, votes, correct) {
     const counts = options.map(() => 0);
     votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) counts[v]++; });
     const max = Math.max(1, ...counts), total = votes.length;
-    return options.map((o, i) => `<div class="row"><div class="label">${esc(o)}</div>
+    return options.map((o, i) => `<div class="row${correct === i ? ' correct' : ''}"><div class="label">${esc(o)}</div>
       <div><div class="track"><div class="fill" style="width:${(100 * counts[i] / max).toFixed(1)}%"></div></div>
       <div class="count">${counts[i]}${total ? ' (' + Math.round(100 * counts[i] / total) + '%)' : ''}</div></div></div>`).join('');
   }
@@ -143,11 +177,38 @@
     const max = Math.max(...items.map((x) => x.n));
     return '<div class="cloud">' + items.map((x) => `<span style="font-size:${(0.9 + 1.4 * x.n / max).toFixed(2)}em">${esc(x.text)}</span>`).join(' ') + '</div>';
   }
-
   function cards(votes) {
     const items = votes.filter((v) => typeof v === 'string' && v.trim());
     if (!items.length) return `<p class="muted">${T.none}</p>`;
     return '<div class="cards">' + items.map((v) => `<div class="card">${esc(v.trim())}</div>`).join('') + '</div>';
+  }
+
+  function scores() {
+    const totals = {};
+    Object.values(data.polls || {}).forEach((p) => {
+      if (!p || !p.quiz || !Number.isInteger(p.correct) || !p.votes) return;
+      const pts = Number(p.points || 1);
+      Object.keys(p.votes).forEach((d) => { if (p.votes[d] === p.correct) totals[d] = (totals[d] || 0) + pts; });
+    });
+    const names = data.names || {};
+    return Object.keys(totals).map((d) => ({ dev: d, name: names[d] || T.anonymous, points: totals[d] }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }
+  function scoreboard() {
+    const rows = scores();
+    if (!rows.length) return '';
+    const mine = rows.find((r) => r.dev === dev);
+    let rank = 0, prev = null;
+    const top = rows.slice(0, 5).map((r, i) => {
+      if (r.points !== prev) { rank = i + 1; prev = r.points; }
+      return `<li class="${r.dev === dev ? 'me' : ''}"><span>${rank}</span><span>${esc(r.name)}</span><span>${r.points} ${T.points}</span></li>`;
+    }).join('');
+    return `<p class="muted">${T.total}: <b>${mine ? mine.points : 0} ${T.points}</b></p><p class="muted">${T.scores}</p><ol class="scores">${top}</ol>`;
+  }
+
+  function nameForm(prompt) {
+    return `${prompt ? `<p>${prompt}</p>` : ''}<form id="nf"><input type="text" id="ni" maxlength="24" placeholder="${T.namePlaceholder}" autocomplete="off" value="${esc(myName)}">
+      <button class="btn primary" type="submit">${T.saveName}</button></form>`;
   }
 
   function render() {
@@ -161,9 +222,19 @@
     const mine = poll.votes ? poll.votes[dev] : undefined;
     const open = poll.state === 'open';
     const options = poll.options || [];
-    let html = `<span class="badge ${open ? 'open' : 'closed'}">${open ? T.open : T.closed} · ${votes.length} ${T.answers}</span>
-      <h1>${esc(poll.question || '')}</h1>`;
     const isText = poll.type === 'text' || poll.type === 'open';
+    const correct = poll.quiz && !open && Number.isInteger(poll.correct) ? poll.correct : null;
+    let html = `<span class="badge ${open ? 'open' : 'closed'}">${open ? T.open : T.closed} · ${votes.length} ${T.answers}</span>`;
+
+    if (poll.quiz && (!myName || editingName)) {
+      html += `<h1>${esc(poll.question || '')}</h1>` + nameForm(T.quizName) + `<footer>${T.code}: ${esc(room)}</footer>`;
+      app.innerHTML = html;
+      bindName();
+      return;
+    }
+    if (poll.quiz) html += `<div class="name">${T.you} <b>${esc(myName)}</b> (<a href="#" id="chg">${T.changeName}</a>)</div>`;
+    html += `<h1>${esc(poll.question || '')}</h1>`;
+
     if (open && !isText) {
       html += options.map((o, i) => `<button class="btn ${mine === i ? 'selected' : ''}" data-i="${i}">${esc(o)}</button>`).join('');
       html += `<p class="muted">${mine === undefined ? T.tap : T.change}</p>`;
@@ -176,8 +247,14 @@
         <button class="btn primary" type="submit">${T.send}</button></form>
         ${mine !== undefined ? `<p class="muted">${T.yourAnswer}: <b>${esc(mine)}</b></p>` : ''}`;
     } else {
-      html += poll.type === 'text' ? cloud(votes) : poll.type === 'open' ? cards(votes) : bars(options, votes);
+      if (correct !== null) {
+        const v = mine === undefined ? `<div class="verdict wrong">${T.noAnswer}</div>`
+          : mine === correct ? `<div class="verdict right">${T.right} +${poll.points || 1} ${T.points}</div>` : `<div class="verdict wrong">${T.wrong}</div>`;
+        html += v + `<p class="muted">${T.correctWas}: <b>${esc(options[correct] || '')}</b></p>`;
+      }
+      html += poll.type === 'text' ? cloud(votes) : poll.type === 'open' ? cards(votes) : bars(options, votes, correct);
       html += `<p class="muted">${T.isClosed}</p>`;
+      if (poll.quiz) html += scoreboard();
     }
     html += `<footer>${T.code}: ${esc(room)}</footer>`;
     app.innerHTML = html;
@@ -188,6 +265,13 @@
       ti.addEventListener('input', () => { draft = ti.value; });
       tf.addEventListener('submit', (e) => { e.preventDefault(); const v = ti.value.trim(); if (v) { vote(id, v); draft = ''; } });
     }
+    const chg = document.getElementById('chg');
+    if (chg) chg.addEventListener('click', (e) => { e.preventDefault(); editingName = true; render(); });
+  }
+
+  function bindName() {
+    const nf = document.getElementById('nf');
+    if (nf) nf.addEventListener('submit', (e) => { e.preventDefault(); saveName(document.getElementById('ni').value); });
   }
 
   listen();

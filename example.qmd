@@ -52,3 +52,18 @@ Hvilken dosis ville du vælge?
 ::: {.poll #aabent type="open"}
 Hvad er din største barriere for at bruge farmakogenetik?
 :::
+
+## Quiz: det rigtige svar afsløres, når spørgsmålet lukkes {.smaller}
+
+::: {.poll #quiz1 points="2"}
+Hvilket gen afgør, om clopidogrel bliver aktiveret?
+
+- [ ] CYP2D6
+- [x] CYP2C19
+- [ ] SLCO1B1
+:::
+
+## Stillingen
+
+::: {.poll-scores top="10"}
+:::

@@ -2,7 +2,7 @@
 
 Live audience polling inside [Quarto](https://quarto.org) revealjs presentations. The audience scans a QR code on the slide, answers on their phone, and the slide updates in real time. No Mentimeter, no account for the audience, no server to run: votes go through a free [Firebase Realtime Database](https://firebase.google.com/docs/database) that you own.
 
-Question types: single choice (live bar chart), short text (live word cloud) and open answers (cards). Results can be hidden until you close the poll and shown again on a later slide.
+Question types: single choice (live bar chart), short text (live word cloud) and open answers (cards). A choice question with a `- [x]` option becomes a quiz question with points and a leaderboard. Results can be hidden until you close the poll and shown again on a later slide.
 
 This extension was vibe coded with Claude (Anthropic) by Michael Asger Andersen in an evening. It is tested end to end against Firebase, but read the code before you trust it with anything important.
 
@@ -78,6 +78,29 @@ A `.poll` div holds one paragraph (the question) and an optional bullet list (th
 | `auto="false"` | Do not open the poll when the slide appears; open it with the V key. |
 
 During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes. The slide shows a QR code, the address of the audience page and the room code, so people without a camera can type it.
+
+## Quiz with points
+
+Mark the correct option with a task-list checkbox and the poll becomes a quiz question:
+
+```markdown
+## Which gene activates clopidogrel?
+
+::: {.poll #gene points="2"}
+Which gene decides whether clopidogrel is activated?
+
+- [ ] CYP2D6
+- [x] CYP2C19
+- [ ] SLCO1B1
+:::
+
+## Scores
+
+::: {.poll-scores top="10"}
+:::
+```
+
+The first time a quiz question opens, the audience page asks for a name. The correct answer is not written to the database while the question is open, so nobody can look it up; it is revealed when you close the question (leave the slide or press V). The slide then marks the correct bar in green and shows how many got it right, and each phone shows right or wrong, the player's total and the top five. A `.poll-scores` div shows the leaderboard (`top`, default 10). `points` is the number of points for a correct answer (default 1). `correct="2"` (1-based) is an alternative to the checkbox. Every participant can change their answer while the question is open, so close it before you discuss.
 
 ## Configure: `_poll.yml`
 

@@ -75,7 +75,7 @@ local function inject(meta)
   quarto.doc.include_text("in-header", "<script>window.QUARTO_POLL = " .. json(cfg) .. ";</script>")
   quarto.doc.add_html_dependency({
     name = "quarto-poll",
-    version = "0.2.0",
+    version = "0.3.0",
     scripts = { "qrcode.min.js", "poll.js" },
     stylesheets = { "poll.css" },
   })
@@ -94,10 +94,21 @@ local function poll_div(div)
   if not id then id = "poll" .. counter end
 
   local question_html, question_text, options = "", "", {}
+  local correct, quiz = nil, false
   for _, b in ipairs(div.content) do
     if b.t == "BulletList" or b.t == "OrderedList" then
       for _, item in ipairs(b.content) do
-        table.insert(options, pandoc.utils.stringify(pandoc.Div(item)))
+        local label = pandoc.utils.stringify(pandoc.Div(item))
+        -- Task-list items (- [x] / - [ ]) mark a quiz; ☒ is the correct answer.
+        -- Lua patterns work on bytes, so compare the UTF-8 sequences directly.
+        local CHECKED, UNCHECKED = utf8.char(0x2612), utf8.char(0x2610) -- the characters Pandoc uses for [x] and [ ]
+        local marker = label:sub(1, 3)
+        if marker == CHECKED or marker == UNCHECKED then
+          quiz = true
+          label = label:sub(4):gsub("^%s+", "")
+          if marker == CHECKED and correct == nil then correct = #options end
+        end
+        table.insert(options, label)
       end
     elseif question_html == "" then
       question_html = pandoc.write(pandoc.Pandoc({ b }), "html")
@@ -119,11 +130,23 @@ local function poll_div(div)
   end
   local auto = div.attributes["auto"] ~= "false"
   local results = div.attributes["results"] == "hidden" and "hidden" or "live"
+  if div.attributes["correct"] then
+    quiz = true
+    correct = tonumber(div.attributes["correct"]) - 1
+  end
+  if quiz and (qtype ~= "choice" or correct == nil or correct < 0 or correct >= #options) then
+    quarto.log.warning("poll " .. id .. ": a quiz needs a choice list with exactly one '- [x]' item (or correct=\"n\")")
+    quiz = false
+  end
+  local points = tonumber(div.attributes["points"]) or 1
 
   local html = '<div class="quarto-poll" data-poll-id="' .. esc(id) .. '"'
     .. ' data-type="' .. esc(qtype) .. '"'
     .. ' data-auto="' .. tostring(auto) .. '"'
     .. ' data-results="' .. results .. '"'
+    .. ' data-quiz="' .. tostring(quiz) .. '"'
+    .. ' data-correct="' .. (quiz and tostring(correct) or "") .. '"'
+    .. ' data-points="' .. tostring(points) .. '"'
     .. ' data-options="' .. esc(json(options)) .. '"'
     .. ' data-question="' .. esc(question_text) .. '">'
     .. '<div class="poll-question">' .. question_html .. '</div>'
@@ -145,6 +168,10 @@ function Pandoc(doc)
       elseif div.classes:includes("poll-results") then
         found = true
         return results_div(div)
+      elseif div.classes:includes("poll-scores") then
+        found = true
+        local top = tonumber(div.attributes["top"]) or 10
+        return pandoc.RawBlock("html", '<div class="quarto-poll-scores" data-top="' .. top .. '"></div>')
       end
     end,
   })

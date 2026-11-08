@@ -1,9 +1,11 @@
--- quarto-poll: live afstemning i revealjs-slides.
--- Et ::: {.poll} div bliver til et slide med QR-kode og søjlediagram,
--- der opdaterer live via Firebase Realtime Database (eller mock-serveren i dev/).
+-- quarto-poll: live audience polling in Quarto revealjs slides.
+-- A ::: {.poll} div becomes a slide with a QR code and a live chart that updates
+-- through a Firebase Realtime Database (or dev/mock_firebase.py while developing).
 
 local injected = false
 local counter = 0
+local CHECKED, UNCHECKED = utf8.char(0x2612), utf8.char(0x2610) -- the characters Pandoc uses for [x] and [ ]
+local TYPES = { choice = true, multi = true, scale = true, rank = true, text = true, open = true }
 
 local function str(v)
   if v == nil then return nil end
@@ -20,6 +22,10 @@ local function esc(s)
   s = s:gsub('"', "&quot;")
   s = s:gsub("<", "&lt;")
   return s
+end
+
+local function warn(id, msg)
+  quarto.log.warning("quarto-poll, poll '" .. id .. "': " .. msg)
 end
 
 -- Pandoc parses YAML header values as Markdown, so a password such as "a$b*c$" would lose
@@ -68,6 +74,7 @@ local function inject(meta)
     email = get("email") or "",
     password = get("password") or "",
     audience = get("audience") or "https://masger.github.io/poll/",
+    audienceMode = get("audience-mode") or "stream",
     color = get("color") or "",
     lang = get("lang") or "da",
     closeOnLeave = (get("close-on-leave") ~= "false"),
@@ -75,38 +82,39 @@ local function inject(meta)
   quarto.doc.include_text("in-header", "<script>window.QUARTO_POLL = " .. json(cfg) .. ";</script>")
   quarto.doc.add_html_dependency({
     name = "quarto-poll",
-    version = "0.3.1",
+    version = "0.4.0",
     scripts = { "qrcode.min.js", "poll.js" },
     stylesheets = { "poll.css" },
   })
 end
 
-local function results_div(div)
-  local id = div.attributes["poll"] or div.attributes["for"] or ""
-  return pandoc.RawBlock("html",
-    '<div class="quarto-poll-results" data-poll-id="' .. esc(id) .. '"></div>')
+local function split_list(s)
+  local out = {}
+  for part in (s or ""):gmatch("[^,]+") do
+    part = part:gsub("^%s+", ""):gsub("%s+$", "")
+    if part ~= "" then table.insert(out, part) end
+  end
+  return out
 end
 
 local function poll_div(div)
   counter = counter + 1
-  local id = div.attributes["poll-id"]
+  local a = div.attributes
+  local id = a["poll-id"]
   if not id and div.identifier ~= "" then id = div.identifier end
   if not id then id = "poll" .. counter end
 
   local question_html, question_text, options = "", "", {}
-  local correct, quiz = nil, false
+  local checked, has_boxes = {}, false
   for _, b in ipairs(div.content) do
     if b.t == "BulletList" or b.t == "OrderedList" then
       for _, item in ipairs(b.content) do
         local label = pandoc.utils.stringify(pandoc.Div(item))
-        -- Task-list items (- [x] / - [ ]) mark a quiz; ☒ is the correct answer.
-        -- Lua patterns work on bytes, so compare the UTF-8 sequences directly.
-        local CHECKED, UNCHECKED = utf8.char(0x2612), utf8.char(0x2610) -- the characters Pandoc uses for [x] and [ ]
         local marker = label:sub(1, 3)
         if marker == CHECKED or marker == UNCHECKED then
-          quiz = true
+          has_boxes = true
           label = label:sub(4):gsub("^%s+", "")
-          if marker == CHECKED and correct == nil then correct = #options end
+          if marker == CHECKED then table.insert(checked, #options) end
         end
         table.insert(options, label)
       end
@@ -115,40 +123,80 @@ local function poll_div(div)
       question_text = pandoc.utils.stringify(b)
     end
   end
-  if question_text == "" and div.attributes["question"] then
-    question_text = div.attributes["question"]
+  if question_text == "" and a["question"] then
+    question_text = a["question"]
     question_html = "<p>" .. esc(question_text) .. "</p>"
   end
 
-  local qtype = div.attributes["type"] or (#options > 0 and "choice" or "text")
-  if qtype ~= "choice" and qtype ~= "text" and qtype ~= "open" then
-    quarto.log.warning("poll " .. id .. ": unknown type '" .. qtype .. "', using 'choice'")
+  local qtype = a["type"] or (#options > 0 and "choice" or "text")
+  if not TYPES[qtype] then
+    warn(id, "unknown type '" .. qtype .. "', using 'choice'")
     qtype = "choice"
   end
-  if qtype == "choice" and #options == 0 then
-    quarto.log.warning("poll " .. id .. ": type 'choice' needs a bullet list of options")
+
+  local m = {
+    id = id,
+    question = question_text,
+    type = qtype,
+    options = options,
+    auto = a["auto"] ~= "false",
+    results = (a["results"] == "hidden") and "hidden" or "live",
+    quiz = false,
+    points = tonumber(a["points"]) or 1,
+    time = tonumber(a["time"]) or 0,
+    speed = a["speed"] == "true",
+  }
+
+  if qtype == "scale" then
+    local min = tonumber(a["min"]) or 1
+    local max = tonumber(a["max"]) or 5
+    if #options == 0 then
+      for v = min, max do table.insert(options, tostring(v)) end
+    end
+    m.min = min
+    m.options = options
   end
-  local auto = div.attributes["auto"] ~= "false"
-  local results = div.attributes["results"] == "hidden" and "hidden" or "live"
-  if div.attributes["correct"] then
-    quiz = true
-    correct = tonumber(div.attributes["correct"]) - 1
+  if (qtype == "choice" or qtype == "multi" or qtype == "rank" or qtype == "scale") and #m.options < 2 then
+    warn(id, "type '" .. qtype .. "' needs a bullet list with at least two options")
   end
-  if quiz and (qtype ~= "choice" or correct == nil or correct < 0 or correct >= #options) then
-    quarto.log.warning("poll " .. id .. ": a quiz needs a choice list with exactly one '- [x]' item (or correct=\"n\")")
-    quiz = false
+
+  -- Quiz: '- [x]' items, correct="n" (1-based, several allowed for multi) or answers="a, b" for text.
+  if a["correct"] then
+    checked = {}
+    for _, n in ipairs(split_list(a["correct"])) do table.insert(checked, tonumber(n) - 1) end
+    has_boxes = true
   end
-  local points = tonumber(div.attributes["points"]) or 1
+  if has_boxes and (qtype == "choice" or qtype == "multi") then
+    if qtype == "choice" and #checked == 1 then
+      m.quiz = true
+      m.correct = checked[1]
+    elseif qtype == "multi" and #checked >= 1 then
+      m.quiz = true
+      m.correct = checked
+    else
+      warn(id, "a choice quiz needs exactly one '- [x]' item; a multi quiz needs at least one")
+    end
+  elseif has_boxes then
+    warn(id, "'- [x]' is only supported for type choice and multi")
+  end
+  if a["answers"] then
+    if qtype == "text" then
+      m.quiz = true
+      m.correct = {}
+      for _, s in ipairs(split_list(a["answers"])) do table.insert(m.correct, s:lower()) end
+    else
+      warn(id, "answers=\"...\" is only supported for type text")
+    end
+  end
+  if m.speed and not (m.quiz and m.time > 0) then
+    warn(id, "speed=\"true\" needs a quiz with time=\"seconds\"; ignoring")
+    m.speed = false
+  end
 
   local html = '<div class="quarto-poll" data-poll-id="' .. esc(id) .. '"'
     .. ' data-type="' .. esc(qtype) .. '"'
-    .. ' data-auto="' .. tostring(auto) .. '"'
-    .. ' data-results="' .. results .. '"'
-    .. ' data-quiz="' .. tostring(quiz) .. '"'
-    .. ' data-correct="' .. (quiz and tostring(correct) or "") .. '"'
-    .. ' data-points="' .. tostring(points) .. '"'
-    .. ' data-options="' .. esc(json(options)) .. '"'
-    .. ' data-question="' .. esc(question_text) .. '">'
+    .. ' data-results="' .. m.results .. '"'
+    .. ' data-poll="' .. esc(json(m)) .. '">'
     .. '<div class="poll-question">' .. question_html .. '</div>'
     .. '<div class="poll-body">'
     .. '<div class="poll-left"><div class="poll-qr"></div><div class="poll-join"></div></div>'
@@ -167,11 +215,13 @@ function Pandoc(doc)
         return poll_div(div)
       elseif div.classes:includes("poll-results") then
         found = true
-        return results_div(div)
+        local id = div.attributes["poll"] or div.attributes["for"] or ""
+        return pandoc.RawBlock("html", '<div class="quarto-poll-results" data-poll-id="' .. esc(id) .. '"></div>')
       elseif div.classes:includes("poll-scores") then
         found = true
         local top = tonumber(div.attributes["top"]) or 10
-        return pandoc.RawBlock("html", '<div class="quarto-poll-scores" data-top="' .. top .. '"></div>')
+        local podium = div.attributes["podium"] ~= "false"
+        return pandoc.RawBlock("html", '<div class="quarto-poll-scores" data-top="' .. top .. '" data-podium="' .. tostring(podium) .. '"></div>')
       end
     end,
   })

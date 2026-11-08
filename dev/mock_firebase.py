@@ -11,6 +11,7 @@ import json
 import os
 import queue
 import threading
+import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -31,8 +32,20 @@ def get_at(parts):
     return node
 
 
+def resolve_sv(data):
+    """Replace Firebase server values such as {".sv": "timestamp"} like the real database does."""
+    if isinstance(data, dict):
+        if data.get(".sv") == "timestamp" and len(data) == 1:
+            return int(time.time() * 1000)
+        return {k: resolve_sv(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [resolve_sv(v) for v in data]
+    return data
+
+
 def set_at(parts, data):
     global DB
+    data = resolve_sv(data)
     if not parts:
         DB = data if isinstance(data, dict) else {}
         return

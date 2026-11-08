@@ -8,15 +8,21 @@
           "$poll": {
             "votes": {
               "$dev": {
-                ".write": "data.parent().parent().child('state').val() === 'open' && $dev.length <= 40",
-                ".validate": "(data.parent().parent().child('type').val() === 'text' && newData.isString() && newData.val().length > 0 && newData.val().length <= 80) || (data.parent().parent().child('type').val() === 'open' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300) || (data.parent().parent().child('type').val() === 'choice' && newData.isNumber() && newData.val() >= 0 && newData.val() < data.parent().parent().child('n').val())"
+                ".write": "data.parent().parent().child('state').val() === 'open' && $dev.matches(/^d[a-z0-9]+$/) && $dev.length <= 40 && (data.parent().parent().child('quiz').val() !== true || root.child('pub/' + $room + '/names/' + $dev).exists())",
+                ".validate": "(data.parent().parent().child('type').val() === 'text' && newData.isString() && newData.val().length > 0 && newData.val().length <= 80) || (data.parent().parent().child('type').val() === 'open' && newData.isString() && newData.val().length > 0 && newData.val().length <= 300) || ((data.parent().parent().child('type').val() === 'choice' || data.parent().parent().child('type').val() === 'scale') && newData.isNumber() && newData.val() >= 0 && newData.val() < data.parent().parent().child('n').val()) || ((data.parent().parent().child('type').val() === 'multi' || data.parent().parent().child('type').val() === 'rank') && newData.isString() && newData.val().length <= 40 && newData.val().matches(/^[0-9]+(,[0-9]+)*$/))"
+              }
+            },
+            "times": {
+              "$dev": {
+                ".write": "data.parent().parent().child('state').val() === 'open' && $dev.matches(/^d[a-z0-9]+$/) && $dev.length <= 40",
+                ".validate": "newData.isNumber()"
               }
             }
           }
         },
         "names": {
           "$dev": {
-            ".write": "$dev.length <= 40",
+            ".write": "$dev.matches(/^d[a-z0-9]+$/) && $dev.length <= 40",
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 24"
           }
         }

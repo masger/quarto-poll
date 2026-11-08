@@ -38,3 +38,23 @@
 .reveal ol.poll-scoreboard li:first-child .poll-rank { color: var(--poll-color, #b22222); }
 .reveal .poll-rank { font-weight: 700; font-variant-numeric: tabular-nums; }
 .reveal .poll-points { font-variant-numeric: tabular-nums; opacity: 0.85; }
+
+/* 0.4.0: timer, scale, ranking, podium */
+.reveal .poll-timer { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.6em; line-height: 1; }
+.reveal .poll-timer.urgent { color: var(--poll-color, #b22222); animation: poll-pulse 1s infinite; }
+@keyframes poll-pulse { 50% { opacity: 0.4; } }
+.reveal .poll-mean { font-size: 0.65em; margin-top: 0.3em; text-align: right; }
+.reveal ol.poll-ranking { list-style: none; margin: 0; padding: 0; font-size: 0.7em; counter-reset: rank; }
+.reveal ol.poll-ranking li { display: grid; grid-template-columns: 1.6em 1fr auto; gap: 0.6em; padding: 0.15em 0.3em; border-bottom: 1px solid rgba(127, 127, 127, 0.3); text-align: left; counter-increment: rank; }
+.reveal ol.poll-ranking li::before { content: counter(rank); font-weight: 700; }
+.reveal .poll-cloud span.correct { color: #2e8b57; font-weight: 700; }
+.reveal .poll-podium { display: flex; justify-content: center; align-items: flex-end; gap: 0.6em; margin: 0.2em 0 0.6em; font-size: 0.6em; }
+.reveal .poll-podium-col { flex: 0 0 9em; text-align: center; }
+.reveal .poll-podium-name { font-weight: 700; margin-bottom: 0.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reveal .poll-podium-block { background: var(--poll-color, #b22222); color: #fff; border-radius: 0.3em 0.3em 0 0; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding-top: 0.3em; transform-origin: bottom; animation: poll-rise 0.8s ease-out; }
+.reveal .poll-podium-block span { font-size: 1.8em; font-weight: 700; line-height: 1; }
+.reveal .poll-podium-block small { font-size: 0.8em; opacity: 0.9; }
+.reveal .place-1 .poll-podium-block { height: 5.5em; }
+.reveal .place-2 .poll-podium-block { height: 4em; opacity: 0.85; }
+.reveal .place-3 .poll-podium-block { height: 3em; opacity: 0.7; }
+@keyframes poll-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }

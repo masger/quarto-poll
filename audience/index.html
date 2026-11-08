@@ -18,6 +18,13 @@
   .btn.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
   .btn.selected::after { content: " ✓"; color: var(--accent); font-weight: 700; }
   .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); text-align: center; }
+  .btn.secondary { text-align: center; }
+  .btn[disabled] { opacity: 0.5; cursor: default; }
+  .btn .ord { display: inline-block; min-width: 1.6em; height: 1.6em; line-height: 1.6em; text-align: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; margin-right: 0.5em; font-size: 0.9em; }
+  .scale { display: flex; gap: 0.4em; margin: 0.6em 0; }
+  .scale .btn { text-align: center; padding: 0.8em 0.2em; margin: 0; flex: 1; }
+  .scale .btn.selected::after { content: ""; }
+  .scale-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--muted); }
   input[type=text], textarea { width: 100%; font: inherit; font-size: 1.05em; padding: 0.8em; border: 2px solid var(--line); border-radius: 0.6em; background: var(--card); color: var(--fg); }
   .cards { display: flex; flex-direction: column; gap: 0.5em; }
   .card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0.4em; padding: 0.6em 0.8em; white-space: pre-wrap; }
@@ -31,17 +38,20 @@
   .badge { display: inline-block; font-size: 0.8em; padding: 0.15em 0.6em; border-radius: 1em; background: var(--line); margin-bottom: 0.6em; }
   .badge.open { background: var(--ok); color: #fff; }
   .badge.closed { background: var(--accent); color: #fff; }
+  .timer { float: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.1em; }
+  .timer.urgent { color: var(--accent); }
   .verdict { font-size: 1.3em; font-weight: 700; margin: 0.6em 0 0.2em; }
   .verdict.right { color: var(--ok); }
   .verdict.wrong { color: var(--accent); }
-  ol.scores { list-style: none; padding: 0; margin: 0.5em 0; }
-  ol.scores li { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.5em; padding: 0.4em 0.2em; border-bottom: 1px solid var(--line); }
+  ol.scores, ol.ranking { list-style: none; padding: 0; margin: 0.5em 0; }
+  ol.scores li, ol.ranking li { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.5em; padding: 0.4em 0.2em; border-bottom: 1px solid var(--line); }
   ol.scores li.me { font-weight: 700; color: var(--accent); }
   .name { font-size: 0.85em; color: var(--muted); margin-bottom: 0.5em; }
   .name a { color: var(--accent); }
   .toast { position: fixed; left: 50%; bottom: 1.2em; transform: translateX(-50%); background: #333; color: #fff; padding: 0.6em 1em; border-radius: 0.5em; font-size: 0.95em; display: none; max-width: 90vw; }
   .cloud { display: flex; flex-wrap: wrap; gap: 0.3em 0.7em; justify-content: center; align-items: center; line-height: 1.1; }
   .cloud span { color: var(--accent); }
+  .cloud span.correct { color: var(--ok); font-weight: 700; }
   footer { margin-top: 2em; font-size: 0.75em; color: var(--muted); }
 </style>
 </head>
@@ -61,31 +71,37 @@
           saved: 'Dit svar er registreret', rejected: 'Afstemningen er lukket', failed: 'Kunne ikke sende svar', offline: 'Ingen forbindelse',
           lost: 'Mistede forbindelsen. Genindlæs siden.', quizName: 'Det er en quiz. Hvad skal vi kalde dig?', namePlaceholder: 'Dit navn',
           saveName: 'Gem', nameSaved: 'Navn gemt', you: 'Du spiller som', changeName: 'skift', right: 'Rigtigt!', wrong: 'Forkert',
-          noAnswer: 'Du svarede ikke', correctWas: 'Rigtigt svar', points: 'point', total: 'Du har i alt', scores: 'Stilling', anonymous: 'Anonym' },
+          noAnswer: 'Du svarede ikke', correctWas: 'Rigtigt svar', points: 'point', total: 'Du har i alt', scores: 'Stilling', anonymous: 'Anonym',
+          multiHint: 'Vælg alle, der passer, og tryk Send.', rankHint: 'Tryk på svarene i den rækkefølge, du vil have dem.', clear: 'Start forfra',
+          mean: 'Gennemsnit', seconds: 's', timeUp: 'Tiden er gået', yourOrder: 'Din rækkefølge' },
     en: { title: 'Poll', enterCode: 'Enter the code shown on screen.', code: 'Code', join: 'Join', wait: 'Waiting for the next question …',
           open: 'Open', closed: 'Closed', answers: 'answers', tap: 'Tap an answer.', change: 'You can change your answer while the poll is open.',
           yourAnswer: 'Your answer', send: 'Send', placeholder: 'Your answer', isClosed: 'The poll is closed.', none: 'No answers yet',
           saved: 'Answer saved', rejected: 'The poll is closed', failed: 'Could not send the answer', offline: 'No connection',
           lost: 'Connection lost. Reload the page.', quizName: 'This is a quiz. What should we call you?', namePlaceholder: 'Your name',
           saveName: 'Save', nameSaved: 'Name saved', you: 'You play as', changeName: 'change', right: 'Correct!', wrong: 'Wrong',
-          noAnswer: 'You did not answer', correctWas: 'Correct answer', points: 'points', total: 'Your total', scores: 'Scores', anonymous: 'Anonymous' },
+          noAnswer: 'You did not answer', correctWas: 'Correct answer', points: 'points', total: 'Your total', scores: 'Scores', anonymous: 'Anonymous',
+          multiHint: 'Select all that apply and tap Send.', rankHint: 'Tap the answers in the order you prefer.', clear: 'Start over',
+          mean: 'Mean', seconds: 's', timeUp: 'Time is up', yourOrder: 'Your order' },
   };
 
   const q = new URLSearchParams(location.search);
   const room = (q.get('r') || '').trim();
   const db = (q.get('db') || DEFAULT_DB).replace(/\/+$/, '');
   const T = I18N[q.get('l')] || I18N.da;
+  let mode = q.get('m') === 'p' ? 'polling' : 'stream';
   document.documentElement.lang = I18N[q.get('l')] ? q.get('l') : 'da';
   document.title = T.title;
   const app = document.getElementById('app');
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const norm = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
 
   let dev, myName = '';
   try {
     dev = localStorage.getItem('poll-device');
-    if (!dev) { dev = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('poll-device', dev); }
+    if (!dev || !/^d[a-z0-9]{8,40}$/.test(dev)) { dev = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem('poll-device', dev); }
     myName = localStorage.getItem('poll-name') || '';
-  } catch (e) { dev = 'd' + Math.random().toString(36).slice(2, 12); }
+  } catch (e) { dev = 'd' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); }
 
   function toast(msg) {
     const t = document.getElementById('toast');
@@ -110,8 +126,11 @@
 
   let data = {};
   let draft = '';
+  let picked = [];          // multi: selected indices; rank: tapped order
+  let pickedFor = null;     // poll id the picks belong to
   let editingName = false;
   let nameSync = false;
+  let lastJson = '';
 
   function setPath(root, path, val) {
     const parts = path.split('/').filter(Boolean);
@@ -127,25 +146,44 @@
     return root;
   }
 
+  /* Two transports: a server-sent event stream (one database connection per phone) or
+   * plain polling every few seconds (no persistent connection, so the free plan's
+   * 100-connection limit does not apply). Streaming falls back to polling on error. */
   function listen() {
+    if (mode === 'polling') { poll(); return; }
     const es = new EventSource(`${db}/pub/${encodeURIComponent(room)}.json`);
     es.addEventListener('put', (e) => { const m = JSON.parse(e.data); data = m.path === '/' ? (m.data || {}) : setPath(data, m.path, m.data); render(); });
     es.addEventListener('patch', (e) => { const m = JSON.parse(e.data); Object.keys(m.data || {}).forEach((k) => { data = setPath(data, m.path + '/' + k, m.data[k]); }); render(); });
-    es.onerror = () => { if (es.readyState === EventSource.CLOSED) app.innerHTML = `<h1>${T.title}</h1><p>${T.lost}</p>`; };
+    es.onerror = () => { if (es.readyState === EventSource.CLOSED) { mode = 'polling'; poll(); } };
   }
+  async function poll() {
+    try {
+      const r = await fetch(`${db}/pub/${encodeURIComponent(room)}.json`, { cache: 'no-store' });
+      if (r.ok) {
+        const txt = await r.text();
+        if (txt !== lastJson) { lastJson = txt; data = JSON.parse(txt) || {}; render(); }
+      }
+    } catch (e) { /* try again */ }
+    const p = active();
+    setTimeout(poll, p && p.state === 'open' ? 2000 : 5000);
+  }
+  function active() { return data.active && data.polls ? data.polls[data.active] : null; }
 
   async function put(path, value) {
-    const r = await fetch(`${db}/pub/${encodeURIComponent(room)}${path}.json`, {
+    return fetch(`${db}/pub/${encodeURIComponent(room)}${path}.json`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value),
     });
-    return r;
   }
 
   async function vote(pollId, value) {
     try {
       const r = await put(`/polls/${encodeURIComponent(pollId)}/votes/${dev}`, value);
-      if (r.ok) toast(T.saved);
-      else toast(r.status === 401 || r.status === 403 ? T.rejected : T.failed + ' (' + r.status + ')');
+      if (r.ok) {
+        toast(T.saved);
+        const p = data.polls && data.polls[pollId];
+        if (p && p.speed) put(`/polls/${encodeURIComponent(pollId)}/times/${dev}`, { '.sv': 'timestamp' }).catch(() => {});
+        if (mode === 'polling') { data = setPath(data, `/polls/${pollId}/votes/${dev}`, value); render(); }
+      } else toast(r.status === 401 || r.status === 403 ? T.rejected : T.failed + ' (' + r.status + ')');
     } catch (e) { toast(T.offline); }
   }
 
@@ -157,39 +195,33 @@
       if (!r.ok) { toast(T.failed + ' (' + r.status + ')'); return; }
       myName = name; editingName = false;
       try { localStorage.setItem('poll-name', name); } catch (e) { /* ignore */ }
+      if (mode === 'polling') data = setPath(data, `/names/${dev}`, name);
       toast(T.nameSaved);
       render();
     } catch (e) { toast(T.offline); }
   }
 
-  function bars(options, votes, correct) {
-    const counts = options.map(() => 0);
-    votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) counts[v]++; });
-    const max = Math.max(1, ...counts), total = votes.length;
-    return options.map((o, i) => `<div class="row${correct === i ? ' correct' : ''}"><div class="label">${esc(o)}</div>
-      <div><div class="track"><div class="fill" style="width:${(100 * counts[i] / max).toFixed(1)}%"></div></div>
-      <div class="count">${counts[i]}${total ? ' (' + Math.round(100 * counts[i] / total) + '%)' : ''}</div></div></div>`).join('');
+  /* ---------- scoring (same rules as the deck) ---------- */
+  function isCorrect(p, v) {
+    if (!p || !p.quiz || p.correct === undefined || p.correct === null || v === undefined) return false;
+    if (p.type === 'multi') return typeof v === 'string' && v.split(',').map(Number).sort((a, b) => a - b).join(',') === String(p.correct);
+    if (p.type === 'text') return typeof v === 'string' && String(p.correct).split('|').includes(norm(v));
+    return v === p.correct;
   }
-  function cloud(votes) {
-    const m = new Map();
-    votes.forEach((v) => { if (typeof v !== 'string') return; const k = v.trim(); if (!k) return; const key = k.toLowerCase(); const c = m.get(key) || { text: k, n: 0 }; c.n++; m.set(key, c); });
-    const items = [...m.values()];
-    if (!items.length) return `<p class="muted">${T.none}</p>`;
-    const max = Math.max(...items.map((x) => x.n));
-    return '<div class="cloud">' + items.map((x) => `<span style="font-size:${(0.9 + 1.4 * x.n / max).toFixed(2)}em">${esc(x.text)}</span>`).join(' ') + '</div>';
+  function pointsFor(p, d) {
+    if (!isCorrect(p, p.votes && p.votes[d])) return 0;
+    const base = Number(p.points || 1);
+    if (p.speed && p.time && p.opened && p.times && typeof p.times[d] === 'number') {
+      const f = Math.min(1, Math.max(0, (p.times[d] - p.opened) / (p.time * 1000)));
+      return Math.round(base * (1 - 0.5 * f));
+    }
+    return base;
   }
-  function cards(votes) {
-    const items = votes.filter((v) => typeof v === 'string' && v.trim());
-    if (!items.length) return `<p class="muted">${T.none}</p>`;
-    return '<div class="cards">' + items.map((v) => `<div class="card">${esc(v.trim())}</div>`).join('') + '</div>';
-  }
-
   function scores() {
     const totals = {};
     Object.values(data.polls || {}).forEach((p) => {
-      if (!p || !p.quiz || !Number.isInteger(p.correct) || !p.votes) return;
-      const pts = Number(p.points || 1);
-      Object.keys(p.votes).forEach((d) => { if (p.votes[d] === p.correct) totals[d] = (totals[d] || 0) + pts; });
+      if (!p || !p.quiz || !p.votes) return;
+      Object.keys(p.votes).forEach((d) => { const pts = pointsFor(p, d); if (pts) totals[d] = (totals[d] || 0) + pts; });
     });
     const names = data.names || {};
     return Object.keys(totals).map((d) => ({ dev: d, name: names[d] || T.anonymous, points: totals[d] }))
@@ -207,6 +239,66 @@
     return `<p class="muted">${T.total}: <b>${mine ? mine.points : 0} ${T.points}</b></p><p class="muted">${T.scores}</p><ol class="scores">${top}</ol>`;
   }
 
+  /* ---------- charts ---------- */
+  function barRows(options, counts, total, correctSet) {
+    const max = Math.max(1, ...counts);
+    return options.map((o, i) => `<div class="row${correctSet && correctSet.has(i) ? ' correct' : ''}"><div class="label">${esc(o)}</div>
+      <div><div class="track"><div class="fill" style="width:${(100 * counts[i] / max).toFixed(1)}%"></div></div>
+      <div class="count">${counts[i]}${total ? ' (' + Math.round(100 * counts[i] / total) + '%)' : ''}</div></div></div>`).join('');
+  }
+  function bars(options, votes, correct) {
+    const counts = options.map(() => 0);
+    votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) counts[v]++; });
+    return barRows(options, counts, votes.length, Number.isInteger(correct) ? new Set([correct]) : null);
+  }
+  function multiBars(options, votes, correct) {
+    const counts = options.map(() => 0);
+    votes.forEach((v) => { if (typeof v === 'string') v.split(',').forEach((i) => { if (counts[Number(i)] !== undefined) counts[Number(i)]++; }); });
+    return barRows(options, counts, votes.length, typeof correct === 'string' ? new Set(correct.split(',').map(Number)) : null);
+  }
+  function scaleChart(p, options, votes) {
+    const counts = options.map(() => 0);
+    let sum = 0, n = 0;
+    votes.forEach((v) => { if (Number.isInteger(v) && counts[v] !== undefined) { counts[v]++; sum += v; n++; } });
+    const min = Number(p.min !== undefined && p.min !== null ? p.min : 1);
+    return barRows(options, counts, votes.length, null) + (n ? `<p>${T.mean}: <b>${(min + sum / n).toFixed(2)}</b></p>` : '');
+  }
+  function rankChart(options, votes) {
+    const sums = options.map(() => 0), ns = options.map(() => 0);
+    votes.forEach((v) => { if (typeof v !== 'string') return; v.split(',').forEach((idx, pos) => { const i = Number(idx); if (sums[i] !== undefined) { sums[i] += pos + 1; ns[i]++; } }); });
+    if (!votes.length) return `<p class="muted">${T.none}</p>`;
+    const rows = options.map((o, i) => ({ o, mean: ns[i] ? sums[i] / ns[i] : null })).sort((a, b) => (a.mean === null) - (b.mean === null) || a.mean - b.mean);
+    return '<ol class="ranking">' + rows.map((r, i) => `<li><span>${i + 1}</span><span>${esc(r.o)}</span><span>${r.mean === null ? '' : r.mean.toFixed(2)}</span></li>`).join('') + '</ol>';
+  }
+  function cloud(votes, correct) {
+    const accepted = typeof correct === 'string' ? new Set(correct.split('|')) : null;
+    const m = new Map();
+    votes.forEach((v) => { if (typeof v !== 'string') return; const k = v.trim(); if (!k) return; const key = k.toLowerCase(); const c = m.get(key) || { text: k, n: 0, ok: accepted ? accepted.has(key) : false }; c.n++; m.set(key, c); });
+    const items = [...m.values()];
+    if (!items.length) return `<p class="muted">${T.none}</p>`;
+    const max = Math.max(...items.map((x) => x.n));
+    return '<div class="cloud">' + items.map((x) => `<span class="${x.ok ? 'correct' : ''}" style="font-size:${(0.9 + 1.4 * x.n / max).toFixed(2)}em">${esc(x.text)}</span>`).join(' ') + '</div>';
+  }
+  function cards(votes) {
+    const items = votes.filter((v) => typeof v === 'string' && v.trim());
+    if (!items.length) return `<p class="muted">${T.none}</p>`;
+    return '<div class="cards">' + items.map((v) => `<div class="card">${esc(v.trim())}</div>`).join('') + '</div>';
+  }
+  function chart(p, votes, correct) {
+    const o = p.options || [];
+    return p.type === 'text' ? cloud(votes, correct) : p.type === 'open' ? cards(votes) : p.type === 'multi' ? multiBars(o, votes, correct)
+      : p.type === 'scale' ? scaleChart(p, o, votes) : p.type === 'rank' ? rankChart(o, votes) : bars(o, votes, correct);
+  }
+
+  function remaining(p) {
+    if (!p || p.state !== 'open' || !p.time || typeof p.opened !== 'number') return null;
+    return Math.max(0, Math.ceil((p.opened + p.time * 1000 - Date.now()) / 1000));
+  }
+  setInterval(() => {
+    const p = active(); const left = remaining(p); const t = document.querySelector('.timer');
+    if (t && left !== null) { t.textContent = `${left} ${T.seconds}`; t.classList.toggle('urgent', left <= 5); }
+  }, 250);
+
   function nameForm(prompt) {
     return `${prompt ? `<p>${prompt}</p>` : ''}<form id="nf"><input type="text" id="ni" maxlength="24" placeholder="${T.namePlaceholder}" autocomplete="off" value="${esc(myName)}">
       <button class="btn primary" type="submit">${T.saveName}</button></form>`;
@@ -214,18 +306,20 @@
 
   function render() {
     const id = data.active;
-    const poll = id && data.polls ? data.polls[id] : null;
+    const poll = active();
     if (!poll) {
       app.innerHTML = `<h1>${T.title}</h1><p class="muted">${T.wait}</p><footer>${T.code}: ${esc(room)}</footer>`;
       return;
     }
+    if (pickedFor !== id) { picked = []; pickedFor = id; }
     const votes = poll.votes ? Object.values(poll.votes) : [];
     const mine = poll.votes ? poll.votes[dev] : undefined;
     const open = poll.state === 'open';
     const options = poll.options || [];
-    const isText = poll.type === 'text' || poll.type === 'open';
-    const correct = poll.quiz && !open && Number.isInteger(poll.correct) ? poll.correct : null;
+    const correct = poll.quiz && !open && poll.correct !== undefined && poll.correct !== null ? poll.correct : null;
+    const left = remaining(poll);
     let html = `<span class="badge ${open ? 'open' : 'closed'}">${open ? T.open : T.closed} · ${votes.length} ${T.answers}</span>`;
+    if (left !== null) html += `<span class="timer${left <= 5 ? ' urgent' : ''}">${left} ${T.seconds}</span>`;
 
     if (poll.quiz && (!myName || editingName)) {
       html += `<h1>${esc(poll.question || '')}</h1>` + nameForm(T.quizName) + `<footer>${T.code}: ${esc(room)}</footer>`;
@@ -243,9 +337,21 @@
     }
     html += `<h1>${esc(poll.question || '')}</h1>`;
 
-    if (open && !isText) {
+    if (open && poll.type === 'choice') {
       html += options.map((o, i) => `<button class="btn ${mine === i ? 'selected' : ''}" data-i="${i}">${esc(o)}</button>`).join('');
       html += `<p class="muted">${mine === undefined ? T.tap : T.change}</p>`;
+    } else if (open && poll.type === 'scale') {
+      html += `<div class="scale">` + options.map((o, i) => `<button class="btn ${mine === i ? 'selected' : ''}" data-i="${i}">${esc(o)}</button>`).join('') + `</div>`;
+      html += `<p class="muted">${mine === undefined ? T.tap : T.change}</p>`;
+    } else if (open && poll.type === 'multi') {
+      const current = picked.length ? picked : (typeof mine === 'string' ? mine.split(',').map(Number) : []);
+      html += options.map((o, i) => `<button class="btn ${current.includes(i) ? 'selected' : ''}" data-m="${i}">${esc(o)}</button>`).join('');
+      html += `<button class="btn primary" id="sendm" ${current.length ? '' : 'disabled'}>${T.send}</button><p class="muted">${T.multiHint}</p>`;
+    } else if (open && poll.type === 'rank') {
+      html += `<p class="muted">${T.rankHint}</p>`;
+      html += options.map((o, i) => { const pos = picked.indexOf(i); return `<button class="btn ${pos >= 0 ? 'selected' : ''}" data-r="${i}">${pos >= 0 ? `<span class="ord">${pos + 1}</span>` : ''}${esc(o)}</button>`; }).join('');
+      html += `<button class="btn primary" id="sendr" ${picked.length === options.length ? '' : 'disabled'}>${T.send}</button><button class="btn secondary" id="clearr">${T.clear}</button>`;
+      if (typeof mine === 'string') html += `<p class="muted">${T.yourOrder}: ${esc(mine.split(',').map((i) => options[Number(i)]).join(' → '))}</p>`;
     } else if (open && poll.type === 'text') {
       html += `<form id="tf"><input type="text" id="ti" maxlength="80" placeholder="${T.placeholder}" autocomplete="off" value="${esc(draft)}">
         <button class="btn primary" type="submit">${T.send}</button></form>
@@ -256,17 +362,35 @@
         ${mine !== undefined ? `<p class="muted">${T.yourAnswer}: <b>${esc(mine)}</b></p>` : ''}`;
     } else {
       if (correct !== null) {
+        const pts = pointsFor(poll, dev);
         const v = mine === undefined ? `<div class="verdict wrong">${T.noAnswer}</div>`
-          : mine === correct ? `<div class="verdict right">${T.right} +${poll.points || 1} ${T.points}</div>` : `<div class="verdict wrong">${T.wrong}</div>`;
-        html += v + `<p class="muted">${T.correctWas}: <b>${esc(options[correct] || '')}</b></p>`;
+          : pts ? `<div class="verdict right">${T.right} +${pts} ${T.points}</div>` : `<div class="verdict wrong">${T.wrong}</div>`;
+        const shown = poll.type === 'multi' ? String(correct).split(',').map((i) => options[Number(i)]).join(', ')
+          : poll.type === 'text' ? String(correct).split('|')[0] : options[correct];
+        html += v + `<p class="muted">${T.correctWas}: <b>${esc(shown || '')}</b></p>`;
       }
-      html += poll.type === 'text' ? cloud(votes) : poll.type === 'open' ? cards(votes) : bars(options, votes, correct);
+      html += chart(poll, votes, correct);
       html += `<p class="muted">${T.isClosed}</p>`;
       if (poll.quiz) html += scoreboard();
     }
     html += `<footer>${T.code}: ${esc(room)}</footer>`;
     app.innerHTML = html;
+
     app.querySelectorAll('button[data-i]').forEach((b) => b.addEventListener('click', () => vote(id, Number(b.dataset.i))));
+    app.querySelectorAll('button[data-m]').forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.m);
+      if (!picked.length && typeof mine === 'string') picked = mine.split(',').map(Number);
+      picked = picked.includes(i) ? picked.filter((x) => x !== i) : picked.concat(i);
+      if (!picked.length) picked = [-1]; // keep an explicit empty pick so the stored vote is not shown as selected
+      render();
+    }));
+    const sendm = document.getElementById('sendm');
+    if (sendm) sendm.addEventListener('click', () => { const v = picked.filter((x) => x >= 0).sort((a, b) => a - b).join(','); if (v) vote(id, v); });
+    app.querySelectorAll('button[data-r]').forEach((b) => b.addEventListener('click', () => { const i = Number(b.dataset.r); if (!picked.includes(i)) { picked = picked.concat(i); render(); } }));
+    const sendr = document.getElementById('sendr');
+    if (sendr) sendr.addEventListener('click', () => { if (picked.length === options.length) vote(id, picked.join(',')); });
+    const clearr = document.getElementById('clearr');
+    if (clearr) clearr.addEventListener('click', () => { picked = []; render(); });
     const tf = document.getElementById('tf');
     if (tf) {
       const ti = document.getElementById('ti');

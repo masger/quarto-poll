@@ -9,9 +9,9 @@ format:
 embed-resources: true
 poll:
   file: none
-  db: http://localhost:8787
+  db: http://localhost:8788
   room: test
-  audience: http://localhost:8787/audience/
+  audience: http://localhost:8788/audience/
   color: "#B22222"
   lang: da
 ---
@@ -66,4 +66,48 @@ Hvilket gen afgør, om clopidogrel bliver aktiveret?
 ## Stillingen
 
 ::: {.poll-scores top="10"}
+:::
+
+## Vælg flere: alle rigtige skal med {.smaller}
+
+::: {.poll #multi1 type="multi"}
+Hvilke lægemidler påvirkes af CYP2C19-genotypen?
+
+- [x] Clopidogrel
+- [ ] Metoprolol
+- [x] Omeprazol
+- [ ] Simvastatin
+:::
+
+## Skala: hvor enig er du?
+
+::: {.poll #skala type="scale" min="1" max="5"}
+Farmakogenetisk test bør være standard før clopidogrel efter PCI
+:::
+
+## Rækkefølge: hvad prioriterer du?
+
+::: {.poll #raekke type="rank"}
+Sæt i rækkefølge efter, hvad der betyder mest for dig
+
+- Pris på testen
+- Svartid
+- Evidens for effekt
+- Patientens ønske
+:::
+
+## Tekstquiz: skriv genet
+
+::: {.poll #tekstquiz type="text" answers="CYP2C19, CYP 2C19"}
+Hvilket gen tester vi, før en patient får clopidogrel?
+:::
+
+## Hurtig quiz med nedtælling og hastighedsbonus {.smaller}
+
+::: {.poll #hurtig points="1000" time="20" speed="true"}
+Hvilket enzym aktiverer clopidogrel?
+
+- [ ] CYP3A4
+- [x] CYP2C19
+- [ ] CYP2D6
 :::

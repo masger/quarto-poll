@@ -111,6 +111,7 @@
   let data = {};
   let draft = '';
   let editingName = false;
+  let nameSync = false;
 
   function setPath(root, path, val) {
     const parts = path.split('/').filter(Boolean);
@@ -232,7 +233,14 @@
       bindName();
       return;
     }
-    if (poll.quiz) html += `<div class="name">${T.you} <b>${esc(myName)}</b> (<a href="#" id="chg">${T.changeName}</a>)</div>`;
+    if (poll.quiz) {
+      html += `<div class="name">${T.you} <b>${esc(myName)}</b> (<a href="#" id="chg">${T.changeName}</a>)</div>`;
+      /* Re-send the name if the presenter reset the room (names are kept on the phone). */
+      if (!(data.names && data.names[dev] === myName) && !nameSync) {
+        nameSync = true;
+        put(`/names/${dev}`, myName).catch(() => {}).then(() => { setTimeout(() => { nameSync = false; }, 3000); });
+      }
+    }
     html += `<h1>${esc(poll.question || '')}</h1>`;
 
     if (open && !isText) {

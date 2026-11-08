@@ -10,10 +10,12 @@
   const I18N = {
     da: { open: 'Åben', closed: 'Lukket', idle: 'Ikke startet', answers: 'svar', code: 'Kode', none: 'Ingen svar endnu',
           keyToggle: 'Afstemning: åbn/luk', keyReset: 'Afstemning: nulstil stemmer', correct: 'rigtige', points: 'point',
-          noScores: 'Ingen point endnu', anonymous: 'Anonym' },
+          noScores: 'Ingen point endnu', anonymous: 'Anonym', keyResetAll: 'Afstemning: nulstil alle svar og point',
+          confirmAll: 'Nulstil alle svar, point og navne i dette rum?' },
     en: { open: 'Open', closed: 'Closed', idle: 'Not started', answers: 'answers', code: 'Code', none: 'No answers yet',
           keyToggle: 'Poll: open/close', keyReset: 'Poll: reset votes', correct: 'correct', points: 'points',
-          noScores: 'No points yet', anonymous: 'Anonymous' },
+          noScores: 'No points yet', anonymous: 'Anonymous', keyResetAll: 'Poll: reset all answers and points',
+          confirmAll: 'Reset all answers, points and names in this room?' },
   };
   let T = I18N.da;
   function loadConfig() {
@@ -132,6 +134,12 @@
   function reset() {
     const el = state.current; if (!el) return;
     write('PUT', `/polls/${encodeURIComponent(meta(el).id)}/votes`, null);
+  }
+  async function resetAll() {
+    if (!window.confirm(T.confirmAll)) return;
+    await write('PUT', '/polls', null);
+    await write('PUT', '/names', null);
+    if (state.current) await activate(state.current);
   }
 
   /* ---------- live stream ---------- */
@@ -298,6 +306,7 @@
     });
     Reveal.addKeyBinding({ keyCode: 86, key: 'V', description: T.keyToggle }, toggle);
     Reveal.addKeyBinding({ keyCode: 88, key: 'X', description: T.keyReset }, reset);
+    Reveal.addKeyBinding({ keyCode: 82, key: 'R', description: T.keyResetAll }, resetAll);
   }
 
   function start() {

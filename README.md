@@ -77,7 +77,7 @@ A `.poll` div holds one paragraph (the question) and an optional bullet list (th
 | `results="hidden"` | While the poll is open the slide shows only the number of answers, not what people chose. Close the poll (leave the slide or press V) to reveal the chart. |
 | `auto="false"` | Do not open the poll when the slide appears; open it with the V key. |
 
-During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes. The slide shows a QR code, the address of the audience page and the room code, so people without a camera can type it.
+During the talk: the poll opens when its slide is shown and closes when you leave the slide (votes are kept). Press **V** to open or close the poll on the current slide, **X** to reset its votes, and **R** to reset every answer, all points and all names in the room (asks for confirmation). Votes stay in the database between talks, so press R before a new audience, or use a new room code. The slide shows a QR code, the address of the audience page and the room code, so people without a camera can type it.
 
 ## Quiz with points
 

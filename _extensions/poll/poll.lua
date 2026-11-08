@@ -75,7 +75,7 @@ local function inject(meta)
   quarto.doc.include_text("in-header", "<script>window.QUARTO_POLL = " .. json(cfg) .. ";</script>")
   quarto.doc.add_html_dependency({
     name = "quarto-poll",
-    version = "0.3.0",
+    version = "0.3.1",
     scripts = { "qrcode.min.js", "poll.js" },
     stylesheets = { "poll.css" },
   })
